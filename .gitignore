@@ -1,2 +1,5 @@
+*.o
 **/__pycache__
 *.gguf
+main
+*.log
