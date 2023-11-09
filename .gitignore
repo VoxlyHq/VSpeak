@@ -4,3 +4,5 @@
 *.gguf
 main
 *.log
+main.dSYM
+

@@ -166,8 +166,27 @@ class Params:
     def guessed(model: LazyModel, prefix: str = "model") -> Params:
         print("prefix ---" + prefix+ ".embed_tokens.weight")
         # try transformer naming first
-        n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape if prefix+ ".embed_tokens.weight" in model else model["tok_embeddings.weight"].shape
+#old        n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape if prefix+ ".embed_tokens.weight" in model else model["tok_embeddings.weight"].shape
 
+        if prefix+ ".embed_tokens.weight" in model:
+            embeds = model[prefix+ ".embed_tokens.weight"]
+
+
+            model[prefix+ ".embed_tokens.weight"] = embeds
+            n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape  
+
+            # fairseq had a bug that accidentally introduced a dummy token in the
+            # embedding table of NLLB-100. We just discard it.
+
+            if n_vocab == 256103:  # means NLLB-100
+                #n_vocab = 256000
+                print("TODO fix the tensor size")
+
+        else:
+            print("failed to find the embed tokens")
+            return
+
+    
         # try transformer naming first
         if prefix+ ".layers.0.self_attn.q_proj.weight" in model:
             n_layer=next(i for i in itertools.count() if f"{prefix}.layers.{i}.self_attn.q_proj.weight" not in model)
@@ -909,7 +928,8 @@ class OutputFile:
 
     @staticmethod
     def write_all(fname_out: Path, ftype: GGMLFileType, params: Params, model: LazyModel, vocab: Vocab, svocab: gguf.SpecialVocab, concurrency: int = DEFAULT_CONCURRENCY, endianess=gguf.GGUFEndian.LITTLE) -> None:
-        #TODO #check_vocab_size(params, vocab)
+        #TODO
+        check_vocab_size(params, vocab)
 
         of = OutputFile(fname_out, endianess=endianess)
 

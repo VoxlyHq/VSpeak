@@ -1,6 +1,6 @@
 # Define the default target now so that it is always the first target
 BUILD_TARGETS = \
-	vspeak
+	vspeak main
 
 # Binaries only useful for tests
 TEST_TARGETS = \

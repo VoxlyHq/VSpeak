@@ -1,6 +1,10 @@
 #define LLAMA_API_INTERNAL
 #include "vfish.h"
 
+//todo rest of code uses fprintf, so we need to use fprintf here too
+#include <iostream>
+
+
 #include "unicode.h"
 
 #include "ggml.h"
@@ -2238,6 +2242,7 @@ static void llm_load_vocab(
         throw std::runtime_error("cannot find tokenizer vocab in model file\n");
     }
 
+
     const float * scores = nullptr;
     const int score_idx = gguf_find_key(ctx, kv(LLM_KV_TOKENIZER_SCORES).c_str());
     if (score_idx != -1) {
@@ -2323,6 +2328,18 @@ static void llm_load_vocab(
         token_data.type  = toktypes ? (llama_token_type) toktypes[i] : LLAMA_TOKEN_TYPE_NORMAL;
     }
     GGML_ASSERT(vocab.id_to_token.size() == vocab.token_to_id.size());
+    // print token_to_id map
+    /*
+    for (const auto& pair : vocab.token_to_id) {
+        std::cout << "Token: " << pair.first << ", ID: " << pair.second << std::endl;
+    }
+
+    // print id_to_token vector
+    for (const auto& data : vocab.id_to_token) {
+        std::cout << "Text: " << data.text << ", Score: " << data.score << ", Type: " << data.type << std::endl;
+    }
+    */
+
 
     // determine the newline token: LLaMA "<0x0A>" == 10 == '\n', Falcon 193 == '\n'
     if (vocab.type == LLAMA_VOCAB_TYPE_SPM) {
@@ -5352,10 +5369,12 @@ static uint8_t llama_token_to_byte(const llama_vocab& vocab, llama_token id) {
 }
 
 static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch) {
+    /*
     static const char * hex = "0123456789ABCDEF";
     switch (llama_vocab_get_type(vocab)) {
     case LLAMA_VOCAB_TYPE_SPM: {
         const char buf[7] = { '<', '0', 'x', hex[ch >> 4], hex[ch & 15], '>', 0 };
+        std::cout << "llama_byte_to_tokenbuf3 : " << buf << std::endl;
         return vocab.token_to_id.at(buf);
     }
     case LLAMA_VOCAB_TYPE_BPE: {
@@ -5364,6 +5383,8 @@ static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch) {
     default:
         GGML_ASSERT(false);
     }
+    */
+    return vocab.token_to_id.at(bytes_to_unicode_bpe(ch));
 }
 
 static void llama_escape_whitespace(std::string & text) {
