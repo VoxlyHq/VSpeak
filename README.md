@@ -2,7 +2,7 @@
 
 Welcome to VoxlFish, an open-source library revolutionizing language translation in software applications. VoxlFish is a robust C++ implementation of the Meta Seams Communication library and the ambitious NLLB (No Language Left Behind) project. Our goal is to bridge communication barriers by enabling seamless translation between 200 different languages. We are targeting embedded devices
 
-It uses the (GGML)[https://github.com/ggerganov/ggml] tensor library underneath for performance. 
+It uses the [GGML](https://github.com/ggerganov/ggml) tensor library underneath for performance. 
 
 ![VoxlFish](docs/voxlefishv-256.png)
 
