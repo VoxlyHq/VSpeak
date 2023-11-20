@@ -101,7 +101,7 @@ typedef void * thread_ret_t;
 #endif
 
 /*#define GGML_PERF*/
-#define GGML_DEBUG 0
+#define GGML_DEBUG 1
 #define GGML_GELU_FP16
 #define GGML_GELU_QUICK_FP16
 #define GGML_SILU_FP16
@@ -3050,6 +3050,11 @@ struct ggml_tensor * ggml_get_next_tensor(struct ggml_context * ctx, struct ggml
 struct ggml_tensor * ggml_get_tensor(struct ggml_context * ctx, const char * name) {
     struct ggml_object * obj = ctx->objects_begin;
 
+    if(strcmp(name, "blk.0.attn_k.bias") == 0) {
+        int x = 0;
+        GGML_PRINT_DEBUG("%s: here", __func__);
+    }
+
     char * const mem_buffer = ctx->mem_buffer;
 
     while (obj != NULL) {
@@ -3058,6 +3063,30 @@ struct ggml_tensor * ggml_get_tensor(struct ggml_context * ctx, const char * nam
             if (strcmp(cur->name, name) == 0) {
                 return cur;
             }
+        }
+
+        obj = obj->next;
+    }
+
+    return NULL;
+}
+
+struct ggml_tensor * ggml_get_tensor2(struct ggml_context * ctx, const char * name) {
+    struct ggml_object * obj = ctx->objects_begin;
+
+    char * const mem_buffer = ctx->mem_buffer;
+
+    while (obj != NULL) {
+        if (obj->type == GGML_OBJECT_TENSOR) {
+            struct ggml_tensor * cur = (struct ggml_tensor *)(mem_buffer + obj->offs);
+            if (strcmp(cur->name, name) == 0) {
+                return cur;
+            }
+            if(strcmp(name, "blk.0.attn_k.bias") == 0) {
+                int x = 0;
+                printf("%s: name-%s\n", __func__, cur->name);
+            }
+
         }
 
         obj = obj->next;

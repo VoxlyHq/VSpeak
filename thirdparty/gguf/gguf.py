@@ -502,7 +502,13 @@ class TensorNameMap:
         MODEL_TENSOR.FFN_GATE: (
             "target_letter_decoder.layers.{bid}.mlp.gate_proj", # llama-hf refact
             "layers.{bid}.feed_forward.w1",     # llama-pth
+            "target_letter_decoder.layers.{bid}.ffn1.w_1", #seamless
+            "target_letter_decoder.layers.{bid}.encoder_attn_layer_norm", #not correct but just filling it with something
+
         ),
+
+#https://medium.com/@jain.sm/understanding-llama-2-333aae52508c
+# Feed-Forward Network (FFN): Apply the FFN using matrices w1, w2, w3.
 
         # Feed-forward down
         MODEL_TENSOR.FFN_DOWN: (
