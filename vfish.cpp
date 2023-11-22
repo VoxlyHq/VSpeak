@@ -2694,6 +2694,7 @@ static void llm_load_tensors(
                         layer.ffn_norm = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, backend);
 
                         layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
+                        //MGC
                         layer.ffn_down = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  n_ff, n_embd}, backend_split);
                         layer.ffn_up   = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, backend_split);
 
@@ -3437,7 +3438,8 @@ static struct ggml_tensor * llm_build_ffn(
         cb(tmp, "ffn_up_b", il);
     }
 
-    if (gate) {
+//MGC 
+    if (1 == 0) {//(gate) {
         switch (type_gate) {
             case LLM_FFN_SEQ:
                 {
@@ -3459,6 +3461,8 @@ static struct ggml_tensor * llm_build_ffn(
         cur = tmp;
     }
 
+//MGC 
+type_op = LLM_FFN_RELU;
     switch (type_op) {
         case LLM_FFN_SILU:
             {
@@ -3486,8 +3490,11 @@ static struct ggml_tensor * llm_build_ffn(
     }
 
     if (type_gate == LLM_FFN_PAR) {
+        /*
         cur = ggml_mul(ctx, cur, tmp);
         cb(cur, "ffn_gate_par", il);
+        */
+       //MGC remove
     }
 
     cur = ggml_mul_mat(ctx, down, cur);

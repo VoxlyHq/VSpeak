@@ -897,10 +897,22 @@ class OutputFile:
 
     def add_tensor_info(self, name: str, tensor: LazyTensor) -> None:
         n_elements = int(np.prod(tensor.shape))
+        shape = tensor.shape
+
+        #MGC
+        if  "ffn_down.weight" in name:
+#                ndarray = ndarray.reshape(1024, 8192, order='C')
+            shape = [1024, 8192]
+            print(f"add_tensor_info fixing ----{name}---{tensor.shape}, {shape}")
+        if  "ffn_up.weight" in name:
+            shape = [8192, 1024]
+            print(f"add_tensor_info fixing up wtf??? ----{name}---{tensor.shape}, {shape}")
+
+
         raw_dtype = getattr(tensor.data_type, 'ggml_type', None)
         data_type = getattr(tensor.data_type, 'quantized_type', None) or tensor.data_type.dtype
         data_nbytes = tensor.data_type.elements_to_bytes(n_elements)
-        self.gguf.add_tensor_info(name, tensor.shape, data_type, data_nbytes, raw_dtype = raw_dtype)
+        self.gguf.add_tensor_info(name, shape, data_type, data_nbytes, raw_dtype = raw_dtype)
 
     def write_meta(self) -> None:
         self.gguf.write_header_to_file()
@@ -972,6 +984,13 @@ class OutputFile:
             size = ' x '.join(f"{dim:6d}" for dim in lazy_tensor.shape)
             padi = len(str(len(model)))
             print(f"[{i+1:{padi}d}/{len(model)}] Writing tensor {name:38s} | size {size:16} | type {lazy_tensor.data_type.name:4} | T+{int(elapsed):4}")
+            if  "ffn_down.weight" in name:
+                ndarray = ndarray.reshape(1024, 8192, order='C')
+                print(f"not fixing ----{name}---{ndarray.shape}")
+            if  "ffn_up.weight" in name:
+                ndarray = ndarray.reshape(8192, 1024, order='C')
+                print(f"weee fixing up wtf??? ----{name}---{ndarray.shape}")
+
             of.gguf.write_tensor_data(ndarray)
 
         of.close()
