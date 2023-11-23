@@ -46,11 +46,16 @@ class AudioDecoder{
 class Vocoder{
 };
 
+class Unit{};
+
+class WaveOut{
+};
+
 class VTranslate {
 public:
     VTranslate(std::string model_name, std::string vocoder_name);
 
-    std::string predict(const std::string& input, Task task, const std::string& tgt_lang, const std::string& s_lang);
+    std::tuple<std::string, WaveOut*, int> predict(const std::string& input, Task task, const std::string& tgt_lang, const std::string& s_lang);
 
     ~VTranslate();
 
@@ -58,6 +63,14 @@ private:
       vtranslate_context ctx;
       vtranslate_state state;
       std::string model_path;
+      //model
+      //text_tokenizer
+      //unit_tokenizer
+
+    std::string inner_prediction_text(const std::string& src, Modality *input_modality, Modality *output_modality, const std::string& tgt_lang);
+    std::tuple<std::string, WaveOut*, int> inner_prediction_audio(const std::string& src, Modality *input_modality, Modality *output_modality, const std::string& tgt_lang);
+
+
 };
 
 #endif // TRANSLATOR_H

@@ -31,7 +31,8 @@ int main(int argc, char ** argv) {
     std::string s_lang = "en"; // Source language
 
     // Call the predict method
-    std::string result = translator.predict(input, task, t_lang, s_lang);
+    auto res = translator.predict(input, task, t_lang, s_lang);
+    auto result = std::get<0>(res);
 
     // Print the result
     std::cout << "Prediction result: " << result << std::endl;

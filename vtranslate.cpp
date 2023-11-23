@@ -1,4 +1,4 @@
-#include "vtranslate.h";
+#include "vtranslate.h"
 #include "llama_trans.h"
 #include <string.h>
 #include <stdio.h>
@@ -65,21 +65,43 @@ VTranslate::VTranslate(std::string model_name, std::string vocoder_name)
 VTranslate::~VTranslate() {
     std::cout << "VTranslate destructed" << std::endl;
 }
-
-std::string VTranslate::predict(const std::string& input, Task task, const std::string& tgt_lang, const std::string& s_lang) {
+std::tuple<std::string, WaveOut*, int>  VTranslate::predict(const std::string& input, Task task, const std::string& tgt_lang, const std::string& s_lang) {
     std::string result = "Predicted output for input: " + input + ", Task: " + std::to_string(static_cast<int>(task)) + ", Language: " + tgt_lang;
 
     auto modalities = getModalitiesFromTask(&task);
 
     // Access the elements of the tuple
-    Modality inputModality = std::get<0>(modalities);
-    Modality outputModality = std::get<1>(modalities);
+    Modality input_mod = std::get<0>(modalities);
+    Modality output_mod = std::get<1>(modalities);
 
     // Print the modalities
-    std::cout << "Input Modality: " << (inputModality == Modality::SPEECH ? "SPEECH" : "TEXT") << std::endl;
-    std::cout << "Output Modality: " << (outputModality == Modality::SPEECH ? "SPEECH" : "TEXT") << std::endl;
+    std::cout << "Input Modality: " << (input_mod == Modality::SPEECH ? "SPEECH" : "TEXT") << std::endl;
+    std::cout << "Output Modality: " << (output_mod == Modality::SPEECH ? "SPEECH" : "TEXT") << std::endl;
+
+    if (s_lang == "" && input_mod == Modality::TEXT) {
+        throw "Source language must be specified  for T2ST, T2TT tasks.";
+    } 
+
+    //TODO input modality speech
+    if (input_mod == Modality::SPEECH) {
+       //TODO run the model on the input speech to get its intermediate representation
+    }
+
+    auto res = this->inner_prediction_text(input, &input_mod, &output_mod, tgt_lang);
+    return std::make_tuple(result, nullptr, 0);
+}
 
 
+std::string VTranslate::inner_prediction_text(const std::string& src, Modality *input_modality, Modality *output_modality, const std::string& tgt_lang) {
+    std::string result = "Predicted output for input: " + src + ", Language: " + tgt_lang;
     return result;
 }
+
+std::tuple<std::string, WaveOut*, int> VTranslate::inner_prediction_audio(const std::string& src, Modality *input_modality, Modality *output_modality, const std::string& tgt_lang){
+    std::string result = "Predicted output for input: " + src + ", Language: " + tgt_lang;
+    WaveOut waveform;
+    int sample_rate = 16000;
+    return std::make_tuple(result, &waveform, sample_rate);
+}
+
 
