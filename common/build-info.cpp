@@ -1,4 +1,4 @@
-int LLAMA_BUILD_NUMBER = 15;
-char const *LLAMA_COMMIT = "7abf954";
+int LLAMA_BUILD_NUMBER = 16;
+char const *LLAMA_COMMIT = "844a1fd";
 char const *LLAMA_COMPILER = "Apple clang version 15.0.0 (clang-1500.0.40.1)";
 char const *LLAMA_BUILD_TARGET = "arm64-apple-darwin23.1.0";
