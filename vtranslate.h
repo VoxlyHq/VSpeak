@@ -19,10 +19,30 @@ enum class Modality {
     SPEECH, TEXT
 };
 
-// Forward declarations for any classes used as types but not defined here
-class UnitYModel;
-class TextTokenizer;
-class UnitTokenizer;
+
+struct vtranslate_context {
+};
+struct vtranslate_state {
+};
+
+
+class TextTokenzier {
+};
+
+class UnitTokenzier {
+};
+
+class WaveformToFbankConverter{
+};
+
+class Collater{
+};
+
+class AudioDecoder{
+};
+
+class Vocoder{
+};
 
 class VTranslate {
 public:
@@ -33,7 +53,9 @@ public:
     ~VTranslate();
 
 private:
-    std::shared_ptr<UnitYModel> model;
+      vtranslate_context ctx;
+      vtranslate_state state;
+      std::string model_path;
 };
 
 #endif // TRANSLATOR_H

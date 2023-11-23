@@ -541,7 +541,7 @@ OBJS += ggml-alloc.o ggml-backend.o ggml-quants.o
 vfish.o: vfish.cpp ggml.h ggml-alloc.h ggml-backend.h ggml-cuda.h ggml-metal.h vfish.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-vtranslate.o: vtranslate.cpp
+vtranslate.o: vtranslate.cpp llama_trans.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 COMMON_H_DEPS = common/common.h common/sampling.h common/log.h

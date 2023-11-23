@@ -12,7 +12,7 @@ int main(int argc, char ** argv) {
         printf("Valid task: %d\n", task);
     }
 
-    std::string model_name = "model_card";
+    std::string model_name = "target_letter_decoder.gguf";
     std::string vocoder_name = "vocoder_card";
 
     // Create an instance of Translator
