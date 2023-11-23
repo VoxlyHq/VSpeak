@@ -17,3 +17,21 @@ Task getTaskFromString(const char* taskStr) {
         return INVALID_TASK; // Or handle the error as appropriate
     }
 }
+
+
+#include <iostream>
+// Include other necessary headers
+
+VTranslate::VTranslate(std::string model_name, std::string vocoder_name) {
+    std::cout << "VTranslate constructed with model: " << model_name << " and vocoder: " << vocoder_name << std::endl;
+}
+
+VTranslate::~VTranslate() {
+    std::cout << "VTranslate destructed" << std::endl;
+}
+
+std::string VTranslate::predict(const std::string& input, Task task, const std::string& tgt_lang, const std::string& s_lang) {
+    std::string result = "Predicted output for input: " + input + ", Task: " + std::to_string(static_cast<int>(task)) + ", Language: " + tgt_lang;
+
+    return result;
+}
