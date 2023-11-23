@@ -1,8 +1,10 @@
+vspeak
 **/.DS_Store
+vspeak.dSYM
 *.o
 **/__pycache__
 *.gguf
-main
+/main
 *.log
 main.dSYM
 

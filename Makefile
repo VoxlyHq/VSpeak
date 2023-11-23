@@ -1,6 +1,6 @@
 # Define the default target now so that it is always the first target
 BUILD_TARGETS = \
-	vspeak main
+	vspeak main 
 
 # Binaries only useful for tests
 TEST_TARGETS = \
@@ -541,6 +541,9 @@ OBJS += ggml-alloc.o ggml-backend.o ggml-quants.o
 vfish.o: vfish.cpp ggml.h ggml-alloc.h ggml-backend.h ggml-cuda.h ggml-metal.h vfish.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+vtranslate.o: vtranslate.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 COMMON_H_DEPS = common/common.h common/sampling.h common/log.h
 COMMON_DEPS   = common.o sampling.o grammar-parser.o build-info.o
 
@@ -575,7 +578,7 @@ main: examples/main/main.cpp                                  ggml.o vfish.o $(C
 	@echo '====  Run ./main -h for help.  ===='
 	@echo
 
-vspeak: examples/main/main.cpp                                  ggml.o vfish.o $(COMMON_DEPS) console.o grammar-parser.o $(OBJS)
+vspeak: examples/vspeak/main.cpp                                  ggml.o vfish.o vtranslate.o $(COMMON_DEPS) console.o grammar-parser.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 	@echo
 	@echo '====  Run ./main -h for help.  ===='
