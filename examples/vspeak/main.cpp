@@ -1,19 +1,26 @@
 #include "vtranslate.h"
 #include <iostream>
+#include "common.h"
 
 int main(int argc, char ** argv) {
     std::cout << "Hello, World!" << std::endl;
+   
+    gpt_params params;
+
+    if (!gpt_params_parse(argc, argv, params)) {
+        return 1;
+    }
 
     // Example usage
-    Task task = getTaskFromString("S2ST");
+    Task task = getTaskFromString(params.task.c_str());
     if (task == INVALID_TASK) {
         printf("Invalid task string\n");
     } else {
         printf("Valid task: %d\n", task);
     }
 
-    std::string model_name = "target_letter_decoder.gguf";
-    std::string vocoder_name = "vocoder_card";
+    std::string model_name = params.model;
+    std::string vocoder_name = params.vocoder;
 
     // Create an instance of Translator
     VTranslate translator(model_name, vocoder_name);

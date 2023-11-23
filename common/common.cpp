@@ -483,6 +483,18 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.image = argv[i];
+        } else if (arg == "--task") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.task = argv[i];
+        }  else if (arg == "--vocoder") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.vocoder = argv[i];
         } else if (arg == "-i" || arg == "--interactive") {
             params.interactive = true;
         } else if (arg == "--embedding") {

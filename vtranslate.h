@@ -19,6 +19,8 @@ enum class Modality {
     SPEECH, TEXT
 };
 
+std::tuple<Modality, Modality> getModalitiesFromTask(const Task* task);
+
 
 struct vtranslate_context {
 };
