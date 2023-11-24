@@ -167,6 +167,10 @@ class Params:
         print("prefix ---" + prefix+ ".embed_tokens.weight")
         # try transformer naming first
 #old        n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape if prefix+ ".embed_tokens.weight" in model else model["tok_embeddings.weight"].shape
+#MGC debug code
+        #for key in model:
+        #    if key.startswith(prefix):
+        #        print(key)
 
         if prefix+ ".embed_tokens.weight" in model:
             embeds = model[prefix+ ".embed_tokens.weight"]
@@ -402,7 +406,14 @@ class SentencePieceVocab:
 
     def sentencepiece_tokens(self) -> Iterable[tuple[bytes, float, gguf.TokenType]]:
         tokenizer = self.sentencepiece_tokenizer
+        yield "<pad>@0", 0.0, gguf.TokenType.CONTROL
+        yield "<unk>", 0.0, gguf.TokenType.UNKNOWN
+        yield "'<s>", 0.0, gguf.TokenType.CONTROL
+        yield "'</s>", 0.0, gguf.TokenType.CONTROL
+
         for i in range(tokenizer.vocab_size()):
+            if i < 3: continue # skip the first 3 tokens
+
             piece = tokenizer.id_to_piece(i)
             text: bytes = piece.encode("utf-8")
             score: float = tokenizer.get_score(i)
@@ -876,6 +887,7 @@ class OutputFile:
         tokens = []
         scores = []
         toktypes = []
+
         # NOTE: `all_tokens` returns the base vocabulary and added tokens
         for text, score, toktype in vocab.all_tokens():
             tokens.append(text)

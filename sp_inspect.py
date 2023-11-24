@@ -9,6 +9,6 @@ vocab_size = sp.get_piece_size()
 print(f"Vocabulary size: {vocab_size}")
 
 # List tokens from key 0 to 10
-for i in range(1, 100):  # 11 because range is exclusive of the upper bound
+for i in range(0, vocab_size -1):  # 11 because range is exclusive of the upper bound
     token = sp.id_to_piece(i)
     print(f"Key {i}: {token}")
