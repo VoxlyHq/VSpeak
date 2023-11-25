@@ -825,8 +825,9 @@ def bounded_parallel_map(func: Callable[[In], Out], iterable: Iterable[In], conc
             yield result
 
 def check_vocab_size(params: Params, vocab: Vocab) -> None:
-    print("Skiping check vocab size !!! turn this back on later!!!")
-    return
+# MGC
+#     print("Skiping check vocab size !!! turn this back on later!!!")
+#    return
     if params.n_vocab != vocab.vocab_size:
         assert isinstance(vocab, BpeVocab) or isinstance(vocab, SentencePieceVocab)
         if params.n_vocab == vocab.vocab_size_base:
@@ -911,7 +912,11 @@ class OutputFile:
         n_elements = int(np.prod(tensor.shape))
         shape = tensor.shape
 
+        #print(f"adding tensor info ----{name}---{tensor.shape}")
         #MGC
+        #if "token_embd.weight" in name:
+        #    print(f"embed_tokens fixing ----{name}---{tensor.shape}")
+        #    tensor[[0, 1, 2, 3]] = tensor[[1, 3, 0, 2]]
         if  "ffn_down.weight" in name:
 #                ndarray = ndarray.reshape(1024, 8192, order='C')
             shape = [1024, 8192]
@@ -999,9 +1004,17 @@ class OutputFile:
             if  "ffn_down.weight" in name:
                 ndarray = ndarray.reshape(1024, 8192, order='C')
                 print(f"not fixing ----{name}---{ndarray.shape}")
-            if  "ffn_up.weight" in name:
+            elif  "ffn_up.weight" in name:
                 ndarray = ndarray.reshape(8192, 1024, order='C')
                 print(f"weee fixing up wtf??? ----{name}---{ndarray.shape}")
+            elif "token_embd.weight" in name:
+                print(f"embed_tokens fixing ----{name}---{ndarray[[0,1,2,3]]}")
+                ndarray[[0, 1, 2, 3]] = ndarray[[1, 3, 0, 2]]
+                print(f"embed_tokens after ----{name}---{ndarray[[0,1,2,3]]}")
+#            elif "output.weight" in name:
+ #               print(f"output fixing ----{name}---{ndarray[[0,1,2,3]]}")
+ #               ndarray[[0, 1, 2, 3]] = ndarray[[1, 3, 0, 2]]
+ #               print(f"out after ----{name}---{ndarray[[0,1,2,3]]}")
 
             of.gguf.write_tensor_data(ndarray)
 

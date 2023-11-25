@@ -2303,12 +2303,12 @@ static void llm_load_vocab(
         if (tokenizer_name == "llama") {
             vocab.type = LLAMA_VOCAB_TYPE_SPM;
 
-            // default special tokens
-            vocab.special_bos_id = 1;
-            vocab.special_eos_id = 2;
-            vocab.special_unk_id = 0;
-            vocab.special_sep_id = -1;
-            vocab.special_pad_id = -1;
+            // default special tokens //MGC
+            vocab.special_bos_id = 2;
+            vocab.special_eos_id = 3;
+            vocab.special_unk_id = 1;
+            vocab.special_sep_id = -1; // where is this from ?
+            vocab.special_pad_id = 0; //-1;
         } else if (tokenizer_name == "gpt2") {
             vocab.type = LLAMA_VOCAB_TYPE_BPE;
 
@@ -2695,8 +2695,8 @@ static void llm_load_tensors(
 
                         layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
                         //MGC
-                        layer.ffn_down = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  n_ff, n_embd}, backend_split);
-                        layer.ffn_up   = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, backend_split);
+                        layer.ffn_down = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  8192, n_embd}, backend_split);
+                        layer.ffn_up   = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   8192}, backend_split);
 
                         if (backend == GGML_BACKEND_GPU) {
                             vram_weights +=
@@ -3186,7 +3186,7 @@ static void llm_load_tensors(
         if (cur != NULL) {
             model.tensors_by_name.emplace_back(ggml_get_name(cur), cur);
         } else {
-            LLAMA_LOG_ERROR("%s: weeee failed getting tensor: %s", __func__, t_name);
+            LLAMA_LOG_ERROR("%s: weeee failed getting tensor: %s \n", __func__, t_name);
         }
     }
 
