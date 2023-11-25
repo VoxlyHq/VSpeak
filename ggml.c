@@ -3053,7 +3053,7 @@ struct ggml_tensor * ggml_get_tensor(struct ggml_context * ctx, const char * nam
 
     if(strcmp(name, "blk.0.attn_k.bias") == 0) {
         int x = 0;
-        GGML_PRINT_DEBUG("%s: here", __func__);
+        GGML_PRINT_DEBUG("%s: here", __func__); //MGC
     }
 
     char * const mem_buffer = ctx->mem_buffer;
@@ -3072,7 +3072,7 @@ struct ggml_tensor * ggml_get_tensor(struct ggml_context * ctx, const char * nam
     return NULL;
 }
 
-struct ggml_tensor * ggml_get_tensor2(struct ggml_context * ctx, const char * name) {
+struct ggml_tensor * ggml_get_tensor2(struct ggml_context * ctx, const char * name) { //MGC
     struct ggml_object * obj = ctx->objects_begin;
 
     char * const mem_buffer = ctx->mem_buffer;

@@ -471,6 +471,20 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.lora_base = argv[i];
+        
+//MGC
+        } else if (arg == "--decoder-prefix") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.decoder_prefix = argv[i];
+        } else if (arg == "--encoder-prefix") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.decoder_prefix = argv[i];
         } else if (arg == "--mmproj") {
             if (++i >= argc) {
                 invalid_param = true;
@@ -489,6 +503,7 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.task = argv[i];
+//MGC            
         }  else if (arg == "--vocoder") {
             if (++i >= argc) {
                 invalid_param = true;
@@ -854,6 +869,9 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     printf("                        draft model for speculative decoding (default: %s)\n", params.model.c_str());
     printf("  -ld LOGDIR, --logdir LOGDIR\n");
     printf("                        path under which to save YAML logs (no logging if unset)\n");
+//MGC
+    printf("  --decoder-prefix S    by default docoder\n");
+    printf("  --encoder-prefix S    by default encoder\n");
     printf("\n");
 #ifndef LOG_DISABLE_LOGS
     log_print_usage();

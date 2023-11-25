@@ -130,6 +130,8 @@ struct gpt_params {
     std::string task = "S2ST";
     //std:string vocoder = ""; //vocoder model
     std::string vocoder = ""; //vocoder model
+    std::string decoder_prefix = "decoder"; 
+    std::string encoder_prefix = "encoder"; 
 };
 
 bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params);

@@ -164,29 +164,29 @@ class Params:
 
     @staticmethod
     def guessed(model: LazyModel, prefix: str = "model") -> Params:
-        print("prefix ---" + prefix+ ".embed_tokens.weight")
+        print("prefix ---" + prefix+ "embed_tokens.weight")
         # try transformer naming first
-#old        n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape if prefix+ ".embed_tokens.weight" in model else model["tok_embeddings.weight"].shape
+#old        n_vocab, n_embd = model[prefix+ "embed_tokens.weight"].shape if prefix+ "embed_tokens.weight" in model else model["tok_embeddings.weight"].shape
 #MGC debug code
         #for key in model:
         #    if key.startswith(prefix):
         #        print(key)
 
-        if prefix+ ".embed_tokens.weight" in model:
-            embeds = model[prefix+ ".embed_tokens.weight"]
+        if prefix+ "embed_tokens.weight" in model:
+            embeds = model[prefix+ "embed_tokens.weight"]
 
 
-            model[prefix+ ".embed_tokens.weight"] = embeds
-            n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape  
+            model[prefix+ "embed_tokens.weight"] = embeds
+            n_vocab, n_embd = model[prefix+ "embed_tokens.weight"].shape  
 
             # fairseq had a bug that accidentally introduced a dummy token in the
             # embedding table of NLLB-100. We just discard it.
 
             if n_vocab == 256103:  # means NLLB-100
                 #n_vocab = 256000
-                tes = model[prefix+ ".embed_tokens.weight"].load()
+                tes = model[prefix+ "embed_tokens.weight"].load()
                 tes.remove_last_element()
-                n_vocab, n_embd = model[prefix+ ".embed_tokens.weight"].shape
+                n_vocab, n_embd = model[prefix+ "embed_tokens.weight"].shape
                 print(f"TODO fix the tensor size- {n_vocab}")
 
         else:
@@ -195,10 +195,10 @@ class Params:
 
     
         # try transformer naming first
-        if prefix+ ".layers.0.self_attn.q_proj.weight" in model:
-            n_layer=next(i for i in itertools.count() if f"{prefix}.layers.{i}.self_attn.q_proj.weight" not in model)
-        elif prefix+".layers.0.self_attn.W_pack.weight" in model:   # next: try baichuan naming
-            n_layer=next(i for i in itertools.count() if f"{prefix}.layers.{i}.self_attn.W_pack.weight" not in model)
+        if prefix+ "layers.0.self_attn.q_proj.weight" in model:
+            n_layer=next(i for i in itertools.count() if f"{prefix}layers.{i}.self_attn.q_proj.weight" not in model)
+        elif prefix+"layers.0.self_attn.W_pack.weight" in model:   # next: try baichuan naming
+            n_layer=next(i for i in itertools.count() if f"{prefix}layers.{i}.self_attn.W_pack.weight" not in model)
         else:
             n_layer=next(i for i in itertools.count() if f"layers.{i}.attention.wq.weight" not in model)
 
@@ -616,7 +616,7 @@ def merge_multifile_models(models_plus: list[ModelPlus], prefix) -> ModelPlus:
     except StopIteration:
         vocab = None
 
-    if any(prefix + ".embed_tokens.weight" in mp.model for mp in models_plus):
+    if any(prefix + "embed_tokens.weight" in mp.model for mp in models_plus):
         # Transformers models put different tensors in different files, but
         # don't split indivdual tensors between files.
         model: LazyModel = {}
@@ -1021,7 +1021,7 @@ class OutputFile:
         of.close()
 
 def pick_output_type(model: LazyModel, output_type_str: str | None) -> GGMLFileType:
-    wq_type = model[gguf.TENSOR_NAMES[gguf.MODEL_TENSOR.ATTN_Q].format(bid=0)+".weight"].data_type
+    wq_type = model[gguf.TENSOR_NAMES[gguf.MODEL_TENSOR.ATTN_Q].format(bid=0, outprefix="decoder.")+".weight"].data_type
 
     if output_type_str == "f32" or (output_type_str is None and wq_type == DT_F32):
         return GGMLFileType.AllF32
@@ -1038,27 +1038,28 @@ def convert_to_output_type(model: LazyModel, output_type: GGMLFileType) -> LazyM
     return {name: tensor.astype(output_type.type_for_tensor(name, tensor))
             for (name, tensor) in model.items()}
 
-def convert_model_names(model: LazyModel, params: Params, prefix: str) -> LazyModel:
-    tmap = gguf.TensorNameMap(ARCH, params.n_layer)
+def convert_model_names(model: LazyModel, params: Params, prefix: str, outprefix: str) -> LazyModel:
+    tmap = gguf.TensorNameMap(ARCH, params.n_layer, prefix, outprefix) # TODO add encoder/decoder
     should_skip: set[gguf.MODEL_TENSOR] = set(gguf.MODEL_TENSOR_SKIP.get(ARCH, []))
 
     tmp = model
 
     # HF models permut or pack some of the tensors, so we need to undo that
-    for i in itertools.count():
-        if f"{prefix}.layers.{i}.self_attn.q_proj.weight" in model:
-            print(f"Permuting layer {i}")
-            tmp[f"{prefix}.layers.{i}.self_attn.q_proj.weight"] = permute_lazy(model[f"{prefix}.layers.{i}.self_attn.q_proj.weight"], params.n_head, params.n_head)
-            tmp[f"{prefix}.layers.{i}.self_attn.k_proj.weight"] = permute_lazy(model[f"{prefix}.layers.{i}.self_attn.k_proj.weight"], params.n_head, params.n_head_kv)
-           #tmp[f"{prefix}.layers.{i}.self_attn.v_proj.weight"] =              model[f"{prefix}.layers.{i}.self_attn.v_proj.weight"]
-        elif f"{prefix}.layers.{i}.self_attn.W_pack.weight" in model:
-            print(f"Unpacking and permuting layer {i}")
-            tmp[f"{prefix}.layers.{i}.self_attn.q_proj.weight"] = permute_part_lazy(model[f"{prefix}.layers.{i}.self_attn.W_pack.weight"], 0, params.n_head, params.n_head)
-            tmp[f"{prefix}.layers.{i}.self_attn.k_proj.weight"] = permute_part_lazy(model[f"{prefix}.layers.{i}.self_attn.W_pack.weight"], 1, params.n_head, params.n_head_kv)
-            tmp[f"{prefix}.layers.{i}.self_attn.v_proj.weight"] = part_lazy        (model[f"{prefix}.layers.{i}.self_attn.W_pack.weight"], 2)
-            del tmp[f"{prefix}.layers.{i}.self_attn.W_pack.weight"]
-        else:
-            break
+    #MGC not sure we need this
+    # for i in itertools.count():
+    #     if f"{prefix}layers.{i}.self_attn.q_proj.weight" in model:
+    #         print(f"Permuting layer {i}")
+    #         tmp[f"{prefix}layers.{i}.self_attn.q_proj.weight"] = permute_lazy(model[f"{prefix}layers.{i}.self_attn.q_proj.weight"], params.n_head, params.n_head)
+    #         tmp[f"{prefix}layers.{i}.self_attn.k_proj.weight"] = permute_lazy(model[f"{prefix}layers.{i}.self_attn.k_proj.weight"], params.n_head, params.n_head_kv)
+    #        #tmp[f"{prefix}layers.{i}.self_attn.v_proj.weight"] =              model[f"{prefix}layers.{i}.self_attn.v_proj.weight"]
+    #     elif f"{prefix}.layers.{i}.self_attn.W_pack.weight" in model:
+    #         print(f"Unpacking and permuting layer {i}")
+    #         tmp[f"{prefix}layers.{i}.self_attn.q_proj.weight"] = permute_part_lazy(model[f"{prefix}layers.{i}.self_attn.W_pack.weight"], 0, params.n_head, params.n_head)
+    #         tmp[f"{prefix}layers.{i}.self_attn.k_proj.weight"] = permute_part_lazy(model[f"{prefix}layers.{i}.self_attn.W_pack.weight"], 1, params.n_head, params.n_head_kv)
+    #         tmp[f"{prefix}layers.{i}.self_attn.v_proj.weight"] = part_lazy        (model[f"{prefix}layers.{i}.self_attn.W_pack.weight"], 2)
+    #         del tmp[f"{prefix}layers.{i}.self_attn.W_pack.weight"]
+    #     else:
+    #         break
 
     out: LazyModel = {}
     for name, lazy_tensor in model.items():
@@ -1210,7 +1211,10 @@ def main(args_in: list[str] | None = None) -> None:
     parser.add_argument("--concurrency", type=int,               help=f"concurrency used for conversion (default: {DEFAULT_CONCURRENCY})", default = DEFAULT_CONCURRENCY)
     parser.add_argument("--bigendian",   action="store_true",    help="model is executed on big endian machine")
     parser.add_argument("--start_key",   type=str,    help="todo", default="model")
-    parser.add_argument("--prefix_model",type=str,    help="todo", default="text_encoder")
+    parser.add_argument("--decoder_prefix_model",type=str,    help="todo", default="target_letter_decoder.")
+    parser.add_argument("--encoder_prefix_model",type=str,    help="todo", default="text_encoder.")
+    parser.add_argument("--encoder_output_prefix",type=str,    help="todo", default="encoder.")
+    parser.add_argument("--decoder_output_prefix",type=str,    help="todo", default="decoder.")
 
     args = parser.parse_args(args_in)
     if args.dump_single:
@@ -1223,7 +1227,7 @@ def main(args_in: list[str] | None = None) -> None:
         return
 
     if not args.vocab_only:
-        model_plus = load_some_model(args.model, args.prefix_model)
+        model_plus = load_some_model(args.model, args.decoder_prefix_model)
     else:
         model_plus = ModelPlus(model = {}, paths = [args.model / 'dummy'], format = 'none', vocab = None)
 
@@ -1243,7 +1247,7 @@ def main(args_in: list[str] | None = None) -> None:
         print(f"start_key = {args.start_key}")
         model_plus.model = model_plus.model[args.start_key]
 
-    params = Params.load(model_plus, args.prefix_model)
+    params = Params.load(model_plus, args.decoder_prefix_model)
     if params.n_ctx == -1:
         if args.ctx is None:
             raise Exception("The model doesn't have a context size, and you didn't specify one with --ctx\n"
@@ -1286,7 +1290,10 @@ def main(args_in: list[str] | None = None) -> None:
         n_vocab = vocab.vocab_size)
 
     model   = model_plus.model
-    model   = convert_model_names(model, params, args.prefix_model)
+    model1   = convert_model_names(model, params, args.decoder_prefix_model, args.decoder_output_prefix)
+    model2   = convert_model_names(model, params, args.encoder_prefix_model, args.encoder_output_prefix)
+    model = {**model1, **model2}
+
     ftype   = pick_output_type(model, args.outtype)
     model   = convert_to_output_type(model, ftype)
     outfile = args.outfile or default_outfile(model_plus.paths, ftype)

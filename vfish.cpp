@@ -546,24 +546,28 @@ static llm_arch llm_arch_from_string(const std::string & name) {
 //   std::string name = tn(LLM_TENSOR_ATTN_NORM, "weight", 3);     -> "blk.3.attn_norm.weight"
 //
 struct LLM_TN {
-    LLM_TN(llm_arch arch) : arch(arch) {}
+    LLM_TN(llm_arch arch, std::string prefix) : arch(arch), prefix(prefix + ".") {}
 
     llm_arch arch;
+    std::string prefix;
 
     std::string operator()(llm_tensor tensor) const {
         return LLM_TENSOR_NAMES[arch].at(tensor);
     }
 
     std::string operator()(llm_tensor tensor, const std::string & suffix) const {
-        return LLM_TENSOR_NAMES[arch].at(tensor) + "." + suffix;
+//        return LLM_TENSOR_NAMES[arch].at(tensor) + "." + suffix;
+//MGC
+        return ::format("%s%s.%s", prefix.c_str(), ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str()).c_str(), suffix.c_str());
     }
 
     std::string operator()(llm_tensor tensor, int bid) const {
-        return ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid);
+        return ::format("%s%s", prefix.c_str(), ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid).c_str());
+//        return prefix + ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid);
     }
 
     std::string operator()(llm_tensor tensor, const std::string & suffix, int bid) const {
-        return ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid) + "." + suffix;
+        return prefix + ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(),  bid) + "." + suffix;
     }
 };
 
@@ -2569,7 +2573,8 @@ static void llm_load_tensors(
         const float * tensor_split,
         bool use_mlock,
         llama_progress_callback progress_callback,
-        void * progress_callback_user_data) {
+        void * progress_callback_user_data,
+        const std::string prefix) {
     model.t_start_us = ggml_time_us();
 
     auto & ctx     = model.ctx;
@@ -2633,7 +2638,7 @@ static void llm_load_tensors(
 
 
     
-        const auto tn = LLM_TN(model.arch);
+        const auto tn = LLM_TN(model.arch, prefix);
         switch (model.arch) {
             case LLM_ARCH_LLAMA:
             case LLM_ARCH_REFACT:
@@ -3232,9 +3237,12 @@ static bool llama_model_load(const std::string & fname, llama_model & model, con
             return true;
         }
 
+        //MGC todo pass in
+        auto decoder_prefix = "decoder";
+
         llm_load_tensors(
             ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
-            params.progress_callback, params.progress_callback_user_data
+            params.progress_callback, params.progress_callback_user_data, decoder_prefix
         );
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("error loading model: %s\n", err.what());
@@ -7395,12 +7403,13 @@ static void llama_convert_tensor_internal(
 
 static ggml_type get_k_quant_type(
     quantize_state_internal & qs,
-    ggml_type new_type, const ggml_tensor * tensor, llama_ftype ftype
+    ggml_type new_type, const ggml_tensor * tensor, llama_ftype ftype, 
+    const std::string& prefix
 ) {
     const std::string name = ggml_get_name(tensor);
     // TODO: avoid hardcoded tensor names - use the TN_* constants
     const llm_arch arch = qs.model.arch;
-    const auto       tn = LLM_TN(arch);
+    const auto       tn = LLM_TN(arch, prefix);
 
     auto use_more_bits = [](int i_layer, int num_layers) -> bool {
         return i_layer < num_layers/8 || i_layer >= 7*num_layers/8 || (i_layer - num_layers/8)%3 == 2;
@@ -7651,7 +7660,10 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         if (quantize) {
             new_type = quantized_type;
             if (!params->pure) {
-                new_type = get_k_quant_type(qs, new_type, tensor, ftype);
+                //MGC
+                throw("Not implemented");
+                std::string prefix = "decoder";
+                new_type = get_k_quant_type(qs, new_type, tensor, ftype, prefix);
             }
 
             // If we've decided to quantize to the same type the tensor is already
@@ -8072,7 +8084,7 @@ struct llama_model_params llama_model_default_params() {
         /*.progress_callback_user_data =*/ nullptr,
         /*.vocab_only                  =*/ false,
         /*.use_mmap                    =*/ true,
-        /*.use_mlock                   =*/ false,
+        /*.use_mlock                   =*/ false
     };
 
 #ifdef GGML_USE_METAL
