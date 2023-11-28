@@ -408,8 +408,8 @@ class SentencePieceVocab:
         tokenizer = self.sentencepiece_tokenizer
         yield "<pad>@0", 0.0, gguf.TokenType.CONTROL
         yield "<unk>", 0.0, gguf.TokenType.UNKNOWN
-        yield "'<s>", 0.0, gguf.TokenType.CONTROL
-        yield "'</s>", 0.0, gguf.TokenType.CONTROL
+        yield "<s>", 0.0, gguf.TokenType.CONTROL
+        yield "</s>", 0.0, gguf.TokenType.CONTROL
 
         for i in range(tokenizer.vocab_size()):
             if i < 3: continue # skip the first 3 tokens
