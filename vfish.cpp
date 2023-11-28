@@ -2667,7 +2667,9 @@ static void llm_load_tensors(
                         }
 
                         model.output_norm = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd},          backend_norm);
-                        model.output      = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, backend_output);
+                       //MGC, does the encoder need a tensor output?
+                       // model.output      = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, backend_output);
+                       model.output      = ml.create_tensor(ctx, "decoder.output.weight", {n_embd, n_vocab}, backend_output);
 
                         if (backend_norm == GGML_BACKEND_GPU) {
                             vram_weights += ggml_nbytes(model.output_norm);
@@ -2698,7 +2700,8 @@ static void llm_load_tensors(
 
                         layer.ffn_norm = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, backend);
 
-                        layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
+//MGC
+                       // layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
                         //MGC
                         layer.ffn_down = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  8192, n_embd}, backend_split);
                         layer.ffn_up   = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   8192}, backend_split);
@@ -3239,11 +3242,20 @@ static bool llama_model_load(const std::string & fname, llama_model & model, con
 
         //MGC todo pass in
         auto decoder_prefix = "decoder";
-
+/*
         llm_load_tensors(
             ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
             params.progress_callback, params.progress_callback_user_data, decoder_prefix
         );
+*/
+        //TODO have seperate models
+        auto encoder_prefix = "encoder";
+
+        llm_load_tensors(
+            ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            params.progress_callback, params.progress_callback_user_data, encoder_prefix
+        );
+
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("error loading model: %s\n", err.what());
         return false;
