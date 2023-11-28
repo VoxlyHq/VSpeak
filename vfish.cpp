@@ -1367,6 +1367,7 @@ struct llama_model {
     }
 };
 
+
 struct llama_context {
     llama_context(const llama_model & model) : model(model), t_start_us(model.t_start_us), t_load_us(model.t_load_us) {}
     ~llama_context() {
@@ -3218,19 +3219,29 @@ static void llm_load_tensors(
     model.t_load_us = ggml_time_us() - model.t_start_us;
 }
 
-static bool llama_model_load(const std::string & fname, llama_model & model, const llama_model_params & params) {
+static bool llama_model_load(const std::string & fname, llama_model & encoder_model,  llama_model & decoder_model, const llama_model_params & params) {
     try {
         llama_model_loader ml(fname, params.use_mmap);
 
-        model.hparams.vocab_only = params.vocab_only;
+        encoder_model.hparams.vocab_only = params.vocab_only;
 
-        llm_load_arch   (ml, model);
-        llm_load_hparams(ml, model);
-        llm_load_vocab  (ml, model);
+        llm_load_arch   (ml, encoder_model);
+        llm_load_hparams(ml, encoder_model);
+        llm_load_vocab  (ml, encoder_model);
 
-        llm_load_print_meta(ml, model);
+        llm_load_print_meta(ml, encoder_model);
 
-        if (model.hparams.n_vocab != model.vocab.id_to_token.size()) {
+
+//Do we need to do this twice ? not sure 
+/*
+        llm_load_arch   (ml, decoder_model);
+        llm_load_hparams(ml, decoder_model);
+        llm_load_vocab  (ml, decoder_model);
+
+        llm_load_print_meta(ml, decoder_model);
+*/
+
+        if (encoder_model.hparams.n_vocab != encoder_model.vocab.id_to_token.size()) {
         //    throw std::runtime_error("vocab size mismatch");
             LLAMA_LOG_INFO("%s: vocab size mismatch\n", __func__);
         }
@@ -3239,22 +3250,24 @@ static bool llama_model_load(const std::string & fname, llama_model & model, con
             LLAMA_LOG_INFO("%s: vocab only - skipping tensors\n", __func__);
             return true;
         }
-
+/*
         //MGC todo pass in
         auto decoder_prefix = "decoder";
-/*
+
         llm_load_tensors(
-            ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            ml, decoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
             params.progress_callback, params.progress_callback_user_data, decoder_prefix
         );
 */
+
         //TODO have seperate models
         auto encoder_prefix = "encoder";
 
         llm_load_tensors(
-            ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            ml, encoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
             params.progress_callback, params.progress_callback_user_data, encoder_prefix
         );
+
 
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("error loading model: %s\n", err.what());
@@ -8184,12 +8197,13 @@ int64_t llama_time_us(void) {
     return ggml_time_us();
 }
 
-struct llama_model * llama_load_model_from_file(
+struct nllb_model * llama_load_model_from_file(
                              const char * path_model,
               struct llama_model_params   params) {
     ggml_time_init();
 
-    llama_model * model = new llama_model;
+    llama_model * encoder_model = new llama_model;
+    llama_model * decoder_model = new llama_model;
 
     unsigned cur_percentage = 0;
     if (params.progress_callback == NULL) {
@@ -8207,13 +8221,16 @@ struct llama_model * llama_load_model_from_file(
         };
     }
 
-    if (!llama_model_load(path_model, *model, params)) {
+    if (!llama_model_load(path_model, *encoder_model, *decoder_model, params)) {
         LLAMA_LOG_ERROR("%s: failed to load model\n", __func__);
-        delete model;
+        delete encoder_model;
+        delete decoder_model;
         return nullptr;
     }
 
-    return model;
+    
+    nllb_model res = { decoder_model, encoder_model };
+    return &res;
 }
 
 void llama_free_model(struct llama_model * model) {

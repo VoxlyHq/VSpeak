@@ -974,25 +974,27 @@ void llama_batch_add(
 std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
     auto mparams = llama_model_params_from_gpt_params(params);
 
-    llama_model * model  = llama_load_model_from_file(params.model.c_str(), mparams);
-    if (model == NULL) {
+//MGC todo use encoder first and then pass to decoder
+    nllb_model* nl_model  = llama_load_model_from_file(params.model.c_str(), mparams);
+    if (nl_model == NULL) {
         fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
         return std::make_tuple(nullptr, nullptr);
     }
+    llama_model* encoder_model = nl_model->encoder_model;
 
     auto cparams = llama_context_params_from_gpt_params(params);
 
-    llama_context * lctx = llama_new_context_with_model(model, cparams);
+    llama_context * lctx = llama_new_context_with_model(encoder_model, cparams);
     if (lctx == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
-        llama_free_model(model);
+        llama_free_model(encoder_model);
         return std::make_tuple(nullptr, nullptr);
     }
 
     for (unsigned int i = 0; i < params.lora_adapter.size(); ++i) {
         const std::string& lora_adapter = std::get<0>(params.lora_adapter[i]);
         float lora_scale = std::get<1>(params.lora_adapter[i]);
-        int err = llama_model_apply_lora_from_file(model,
+        int err = llama_model_apply_lora_from_file(encoder_model,
                                              lora_adapter.c_str(),
                                              lora_scale,
                                              ((i > 0) || params.lora_base.empty())
@@ -1002,25 +1004,25 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         if (err != 0) {
             fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
             llama_free(lctx);
-            llama_free_model(model);
+            llama_free_model(encoder_model);
             return std::make_tuple(nullptr, nullptr);
         }
     }
 
     if (params.ignore_eos) {
-        params.sparams.logit_bias[llama_token_eos(model)] = -INFINITY;
+        params.sparams.logit_bias[llama_token_eos(encoder_model)] = -INFINITY;
     }
 
     {
         LOG("warming up the model with an empty run\n");
 
-        std::vector<llama_token> tmp = { llama_token_bos(model), llama_token_eos(model), };
+        std::vector<llama_token> tmp = { llama_token_bos(encoder_model), llama_token_eos(encoder_model), };
         llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
         llama_kv_cache_clear(lctx);
         llama_reset_timings(lctx);
     }
 
-    return std::make_tuple(model, lctx);
+    return std::make_tuple(encoder_model, lctx);
 }
 
 //
