@@ -3233,13 +3233,11 @@ static bool llama_model_load(const std::string & fname, llama_model & encoder_mo
 
 
 //Do we need to do this twice ? not sure 
-/*
         llm_load_arch   (ml, decoder_model);
         llm_load_hparams(ml, decoder_model);
         llm_load_vocab  (ml, decoder_model);
 
         llm_load_print_meta(ml, decoder_model);
-*/
 
         if (encoder_model.hparams.n_vocab != encoder_model.vocab.id_to_token.size()) {
         //    throw std::runtime_error("vocab size mismatch");
@@ -3250,7 +3248,7 @@ static bool llama_model_load(const std::string & fname, llama_model & encoder_mo
             LLAMA_LOG_INFO("%s: vocab only - skipping tensors\n", __func__);
             return true;
         }
-/*
+
         //MGC todo pass in
         auto decoder_prefix = "decoder";
 
@@ -3258,7 +3256,6 @@ static bool llama_model_load(const std::string & fname, llama_model & encoder_mo
             ml, decoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
             params.progress_callback, params.progress_callback_user_data, decoder_prefix
         );
-*/
 
         //TODO have seperate models
         auto encoder_prefix = "encoder";
@@ -4993,7 +4990,7 @@ static struct ggml_cgraph * llama_build_graph(
         const int i_gpu_start  = n_layer - n_gpu_layers;
 
         // should we offload the final norm? yes if we are not computing embeddings
-        const bool offload_emb = lctx.embedding.empty();
+        const bool offload_emb = true; // lctx.embedding.empty(); //MGC
 
         static const std::unordered_map<llm_offload_func_e, std::string, std::hash<int>> k_offload_func_name = {
             { OFFLOAD_FUNC_NOP, "CPU" },
@@ -5265,6 +5262,10 @@ static int llama_decode_internal(
     GGML_ASSERT(strcmp(res->name,        "result_output") == 0);
     GGML_ASSERT(strcmp(embeddings->name, "result_norm")   == 0);
 
+    LLAMA_LOG_INFO("%s: - result_output: %32s %-8s [ %s ]\n", __func__, res->name, ggml_type_name(res->type), llama_format_tensor_shape(res).c_str());
+    LLAMA_LOG_INFO("%s: - result_norm: %32s %-8s [ %s ]\n", __func__, embeddings->name, ggml_type_name(embeddings->type), llama_format_tensor_shape(embeddings).c_str());
+
+
 
 #ifdef GGML_USE_CUBLAS
     for (int i = 0; i < gf->n_leafs; i++) {
@@ -5385,13 +5386,15 @@ static int llama_decode_internal(
         }
     }
 
-    // extract embeddings
-    if (!lctx.embedding.empty()) {
-        auto & embedding_out = lctx.embedding;
+    //MGC extract embeddings (return it somehow)
+    //if (!lctx.embedding.empty()) {
+        //auto & embedding_out = lctx.embedding; //TODO its not handling N dimensions UGHHHH
+        std::vector<float> embedding_out;
 
         embedding_out.resize(n_embd);
         memcpy(embedding_out.data(), (float *) ggml_get_data(embeddings) + (n_embd*(n_tokens - 1)), sizeof(float)*n_embd);
-    }
+        lctx.embedding = embedding_out;
+    //}
 
     // measure the performance only for the single-token evals
     if (n_tokens == 1) {

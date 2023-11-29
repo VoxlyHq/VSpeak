@@ -572,6 +572,7 @@ int main(int argc, char ** argv) {
                 }
             }
 
+            //MGC we only run the encoder for 1 batch, and store its embedding  
             for (int i = 0; i < (int) embd.size(); i += params.n_batch) {
                 int n_eval = (int) embd.size() - i;
                 if (n_eval > params.n_batch) {

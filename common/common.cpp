@@ -980,6 +980,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
         return std::make_tuple(nullptr, nullptr);
     }
+    //TODO for some reason the nl_model->enocder_model pointer is getting overwritten
     llama_model* encoder_model = nl_model->encoder_model;
 
     auto cparams = llama_context_params_from_gpt_params(params);
