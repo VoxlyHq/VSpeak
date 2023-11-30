@@ -971,6 +971,62 @@ void llama_batch_add(
     batch.n_tokens++;
 }
 
+
+//MGC ai autocompleted this
+int run_encoder_model(llama_model* encoder_model, llama_context* lctx, gpt_params & params) {
+    int n_past             = 0;
+    int n_consumed         = 0;
+    std::vector<llama_token> embd_inp;
+    llama_sampling_params & sparams = params.sparams;
+
+    embd_inp = ::llama_tokenize(lctx, params.translation_text, false, true);
+    LOG("prompt: \"%s\"\n", log_tostr(params.prompt));
+    LOG("tokens: %s\n", LOG_TOKENS_TOSTR_PRETTY(lctx, embd_inp).c_str());
+
+
+    std::vector<llama_token> embd;
+    struct llama_sampling_context * ctx_sampling = llama_sampling_init(sparams);
+
+
+    // some user input remains from prompt or interaction, forward it to processing
+    LOG("embd_inp.size(): %d, n_consumed: %d\n", (int) embd_inp.size(), n_consumed);
+    while ((int) embd_inp.size() > n_consumed) {
+        embd.push_back(embd_inp[n_consumed]);
+
+        // push the prompt in the sampling context in order to apply repetition penalties later
+        // for the prompt, we don't apply grammar rules
+        llama_sampling_accept(ctx_sampling, lctx, embd_inp[n_consumed], false);
+
+        ++n_consumed;
+        if ((int) embd.size() >= params.n_batch) {
+            break;
+        }
+    }
+
+
+    for (int i = 0; i < (int) embd.size(); i += params.n_batch) {
+        int n_eval = (int) embd.size() - i;
+        if (n_eval > params.n_batch) {
+            n_eval = params.n_batch;
+        }
+
+        LOG("eval: %s\n", LOG_TOKENS_TOSTR_PRETTY(lctx, embd).c_str());
+
+        if (llama_decode(lctx, llama_batch_get_one(&embd[i], n_eval, n_past, 0))) {
+            LOG_TEE("%s : failed to eval\n", __func__);
+            return 1;
+        }
+
+        n_past += n_eval;
+
+        LOG("n_past = %d\n", n_past);
+    }
+
+
+
+   return 0;
+}
+
 std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
     auto mparams = llama_model_params_from_gpt_params(params);
 
@@ -982,8 +1038,10 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
     }
     //TODO for some reason the nl_model->enocder_model pointer is getting overwritten
     llama_model* encoder_model = nl_model->encoder_model;
+    llama_model* decoder_model = nl_model->decoder_model;
 
     auto cparams = llama_context_params_from_gpt_params(params);
+
 
     llama_context * lctx = llama_new_context_with_model(encoder_model, cparams);
     if (lctx == NULL) {
@@ -1023,7 +1081,36 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         llama_reset_timings(lctx);
     }
 
-    return std::make_tuple(encoder_model, lctx);
+
+
+    //MGC RUN the encoder and get the embeddings back
+    int ret = run_encoder_model(encoder_model, lctx, params);
+    if(ret != 0){
+        throw "Failed to run encoder model";
+    }
+
+
+    lctx = NULL; //TODO is this correct way to free it?
+    llama_context * lctx2 = llama_new_context_with_model(decoder_model, cparams);
+    if (lctx2 == NULL) {
+        fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
+        llama_free_model(encoder_model);
+        return std::make_tuple(nullptr, nullptr);
+    }
+
+    {
+        LOG("warming up the model with an empty run\n");
+
+        std::vector<llama_token> tmp = { llama_token_bos(decoder_model), llama_token_eos(decoder_model), };
+        llama_decode(lctx2, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
+        llama_kv_cache_clear(lctx2);
+        llama_reset_timings(lctx2);
+    }
+
+
+
+
+    return std::make_tuple(decoder_model, lctx2);
 }
 
 //

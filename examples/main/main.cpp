@@ -100,6 +100,8 @@ static void sigint_handler(int signo) {
 }
 #endif
 
+
+
 int main(int argc, char ** argv) {
     gpt_params params;
     g_params = &params;
@@ -169,6 +171,11 @@ int main(int argc, char ** argv) {
     LOG("%s: llama backend init\n", __func__);
     llama_backend_init(params.numa);
 
+    //MGC TODO split prompt and translation
+    auto translation = params.prompt;
+    params.prompt = "</s>__tha__";
+    params.translation_text = translation;
+
     llama_model * model;
     llama_context * ctx;
     llama_context * ctx_guidance = NULL;
@@ -233,6 +240,8 @@ int main(int argc, char ** argv) {
     LOG("add_bos: %d\n", add_bos);
 
     std::vector<llama_token> embd_inp;
+
+
 
     if (params.interactive_first || params.instruct || !params.prompt.empty() || session_tokens.empty()) {
         LOG("tokenize the prompt\n");

@@ -1408,6 +1408,7 @@ struct llama_context {
 
     // input embedding (1-dimensional array: [n_embd])
     std::vector<float> embedding;
+    ggml_tensor* result_tensor = nullptr;
 
     // reusable buffer for `struct ggml_graph_plan.work_data`
     std::vector<uint8_t> work_buffer;
@@ -3249,6 +3250,15 @@ static bool llama_model_load(const std::string & fname, llama_model & encoder_mo
             return true;
         }
 
+        //TODO have seperate models
+        auto encoder_prefix = "encoder";
+
+        llm_load_tensors(
+            ml, encoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            params.progress_callback, params.progress_callback_user_data, encoder_prefix
+        );
+
+
         //MGC todo pass in
         auto decoder_prefix = "decoder";
 
@@ -3257,13 +3267,6 @@ static bool llama_model_load(const std::string & fname, llama_model & encoder_mo
             params.progress_callback, params.progress_callback_user_data, decoder_prefix
         );
 
-        //TODO have seperate models
-        auto encoder_prefix = "encoder";
-
-        llm_load_tensors(
-            ml, encoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
-            params.progress_callback, params.progress_callback_user_data, encoder_prefix
-        );
 
 
     } catch (const std::exception & err) {
@@ -5265,6 +5268,7 @@ static int llama_decode_internal(
     LLAMA_LOG_INFO("%s: - result_output: %32s %-8s [ %s ]\n", __func__, res->name, ggml_type_name(res->type), llama_format_tensor_shape(res).c_str());
     LLAMA_LOG_INFO("%s: - result_norm: %32s %-8s [ %s ]\n", __func__, embeddings->name, ggml_type_name(embeddings->type), llama_format_tensor_shape(embeddings).c_str());
 
+    lctx.result_tensor = embeddings;
 
 
 #ifdef GGML_USE_CUBLAS
