@@ -29,6 +29,18 @@ Ensure you have a C++ compiler and environment set up. VSpeak is compatible with
    git clone https://github.com/voxlyhq/vspeak.git
    ```
 
+## Download a model from hugging face
+
+Right now its only the V1 models, please open a PR if you do other conversions
+
+## To convert models 
+
+```bash
+pip3 install -r requirements.txt
+
+python3 convert_nllb.py  --vocab-dir=tokenizer.model --ctx 4096  --start_key model --prefix_model=target_letter_decoder --outfile otarget_letter_decoder.gguf   multitask_unity_large.pt
+bck-i-search: nllb_
+```
 
 ## Contributing
 
