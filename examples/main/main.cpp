@@ -178,17 +178,19 @@ int main(int argc, char ** argv) {
 
     llama_model * model;
     llama_context * ctx;
+    llama_context * ctx_encoder;
     llama_context * ctx_guidance = NULL;
     g_model = &model;
     g_ctx = &ctx;
 
     // load the model and apply lora adapter, if any
     LOG("%s: load the model and apply lora adapter, if any\n", __func__);
-    std::tie(model, ctx) = llama_init_from_gpt_params(params);
+    std::tie(model, ctx, ctx_encoder) = llama_init_from_gpt_params(params);
     if (sparams.cfg_scale > 1.f) {
         struct llama_context_params lparams = llama_context_params_from_gpt_params(params);
         ctx_guidance = llama_new_context_with_model(model, lparams);
     }
+
 
     if (model == NULL) {
         LOG_TEE("%s: error: unable to load model\n", __func__);

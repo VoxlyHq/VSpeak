@@ -339,6 +339,8 @@ struct nllb_model {
                              int   n_threads),
             "use llama_model_apply_lora_from_file instead");
 
+    LLAMA_API bool llama_copy_results(struct llama_context * ctx, struct llama_context * ctx_encoder);
+
     LLAMA_API int llama_model_apply_lora_from_file(
             const struct llama_model * model,
                       const char * path_lora,
@@ -486,7 +488,8 @@ struct nllb_model {
     // < 0 - error
     LLAMA_API int llama_decode(
             struct llama_context * ctx,
-              struct llama_batch   batch);
+              struct llama_batch   batch,
+              bool save_final_tensor = false);
 
     // Set the number of threads used for decoding
     // n_threads is the number of threads used for generation (single token)

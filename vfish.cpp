@@ -1552,6 +1552,7 @@ static bool llama_kv_cache_find_slot(
     return true;
 }
 
+
 // find how many cells are currently in use
 static int32_t llama_kv_cache_cell_max(const struct llama_kv_cache & cache) {
     for (uint32_t i = cache.size - 1; i > 0; --i) {
@@ -1561,6 +1562,16 @@ static int32_t llama_kv_cache_cell_max(const struct llama_kv_cache & cache) {
     }
 
     return 0;
+}
+
+//After decoder runs, we get a result tensor that we can use to pass to encoder
+bool llama_copy_results(llama_context * ctx, llama_context * ctx_encoder) {
+    if (ctx_encoder->result_tensor == NULL) {
+            LLAMA_LOG_ERROR("%s: ctx_encoder->result_tensor is NULL\n", __func__);
+            return false;
+    }
+    ctx->result_tensor = ctx_encoder->result_tensor;
+    return true;
 }
 
 static void llama_kv_cache_clear(struct llama_kv_cache & cache) {
@@ -5173,7 +5184,8 @@ static struct ggml_cgraph * llama_build_graph(
 //
 static int llama_decode_internal(
          llama_context & lctx,
-           llama_batch   batch) {
+           llama_batch   batch,
+           bool save_final_tensor = false) {
     const uint32_t n_tokens = batch.n_tokens;
 
     if (n_tokens == 0) {
@@ -5242,6 +5254,7 @@ static int llama_decode_internal(
     }
 
     if (!llama_kv_cache_find_slot(kv_self, batch)) {
+        LLAMA_LOG_ERROR("%s: !llama_kv_cache_find_slot", __func__);
         return 1;
     }
 
@@ -5268,7 +5281,9 @@ static int llama_decode_internal(
     LLAMA_LOG_INFO("%s: - result_output: %32s %-8s [ %s ]\n", __func__, res->name, ggml_type_name(res->type), llama_format_tensor_shape(res).c_str());
     LLAMA_LOG_INFO("%s: - result_norm: %32s %-8s [ %s ]\n", __func__, embeddings->name, ggml_type_name(embeddings->type), llama_format_tensor_shape(embeddings).c_str());
 
-    lctx.result_tensor = embeddings;
+    if(save_final_tensor) {
+        lctx.result_tensor = embeddings;
+    }
 
 
 #ifdef GGML_USE_CUBLAS
@@ -9075,8 +9090,9 @@ void llama_batch_free(struct llama_batch batch) {
 
 int llama_decode(
         struct llama_context * ctx,
-          struct llama_batch   batch) {
-    const int ret = llama_decode_internal(*ctx, batch);
+          struct llama_batch   batch,
+          bool save_final_tensor) {
+    const int ret = llama_decode_internal(*ctx, batch, save_final_tensor);
     if (ret < 0) {
         LLAMA_LOG_ERROR("%s: failed to decode, ret = %d\n", __func__, ret);
     }

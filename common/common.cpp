@@ -1012,7 +1012,8 @@ int run_encoder_model(llama_model* encoder_model, llama_context* lctx, gpt_param
 
         LOG("eval: %s\n", LOG_TOKENS_TOSTR_PRETTY(lctx, embd).c_str());
 
-        if (llama_decode(lctx, llama_batch_get_one(&embd[i], n_eval, n_past, 0))) {
+        auto res = llama_decode(lctx, llama_batch_get_one(&embd[i], n_eval, n_past, 0), true);
+        if (res != 0) {
             LOG_TEE("%s : failed to eval\n", __func__);
             return 1;
         }
@@ -1027,14 +1028,14 @@ int run_encoder_model(llama_model* encoder_model, llama_context* lctx, gpt_param
    return 0;
 }
 
-std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
+std::tuple<struct llama_model *, struct llama_context *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
     auto mparams = llama_model_params_from_gpt_params(params);
 
 //MGC todo use encoder first and then pass to decoder
     nllb_model* nl_model  = llama_load_model_from_file(params.model.c_str(), mparams);
     if (nl_model == NULL) {
         fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
-        return std::make_tuple(nullptr, nullptr);
+        return std::make_tuple(nullptr, nullptr, nullptr);
     }
     //TODO for some reason the nl_model->enocder_model pointer is getting overwritten
     llama_model* encoder_model = nl_model->encoder_model;
@@ -1047,7 +1048,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
     if (lctx == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
         llama_free_model(encoder_model);
-        return std::make_tuple(nullptr, nullptr);
+        return std::make_tuple(nullptr, nullptr, nullptr);
     }
 
     for (unsigned int i = 0; i < params.lora_adapter.size(); ++i) {
@@ -1064,7 +1065,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
             fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
             llama_free(lctx);
             llama_free_model(encoder_model);
-            return std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr, nullptr);
         }
     }
 
@@ -1095,7 +1096,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
     if (lctx2 == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
         llama_free_model(encoder_model);
-        return std::make_tuple(nullptr, nullptr);
+        return std::make_tuple(nullptr, nullptr, nullptr);
     }
 
     {
@@ -1110,7 +1111,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
 
 
 
-    return std::make_tuple(decoder_model, lctx2);
+    return std::make_tuple(decoder_model, lctx2, lctx);
 }
 
 //

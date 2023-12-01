@@ -152,7 +152,7 @@ void process_escapes(std::string& input);
 //
 
 // TODO: avoid tuplue, use struct
-std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params);
+std::tuple<struct llama_model *, struct llama_context *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params);
 
 struct llama_model_params   llama_model_params_from_gpt_params  (const gpt_params & params);
 struct llama_context_params llama_context_params_from_gpt_params(const gpt_params & params);
