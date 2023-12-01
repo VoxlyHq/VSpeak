@@ -471,6 +471,20 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.lora_base = argv[i];
+        
+//MGC
+        } else if (arg == "--decoder-prefix") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.decoder_prefix = argv[i];
+        } else if (arg == "--encoder-prefix") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.decoder_prefix = argv[i];
         } else if (arg == "--mmproj") {
             if (++i >= argc) {
                 invalid_param = true;
@@ -489,6 +503,7 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.task = argv[i];
+//MGC            
         }  else if (arg == "--vocoder") {
             if (++i >= argc) {
                 invalid_param = true;
@@ -854,6 +869,9 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     printf("                        draft model for speculative decoding (default: %s)\n", params.model.c_str());
     printf("  -ld LOGDIR, --logdir LOGDIR\n");
     printf("                        path under which to save YAML logs (no logging if unset)\n");
+//MGC
+    printf("  --decoder-prefix S    by default docoder\n");
+    printf("  --encoder-prefix S    by default encoder\n");
     printf("\n");
 #ifndef LOG_DISABLE_LOGS
     log_print_usage();
@@ -953,28 +971,89 @@ void llama_batch_add(
     batch.n_tokens++;
 }
 
+
+//MGC ai autocompleted this
+int run_encoder_model(llama_model* encoder_model, llama_context* lctx, gpt_params & params) {
+    int n_past             = 0;
+    int n_consumed         = 0;
+    std::vector<llama_token> embd_inp;
+    llama_sampling_params & sparams = params.sparams;
+
+    embd_inp = ::llama_tokenize(lctx, params.translation_text, false, true);
+    LOG("prompt: \"%s\"\n", log_tostr(params.prompt));
+    LOG("tokens: %s\n", LOG_TOKENS_TOSTR_PRETTY(lctx, embd_inp).c_str());
+
+
+    std::vector<llama_token> embd;
+    struct llama_sampling_context * ctx_sampling = llama_sampling_init(sparams);
+
+
+    // some user input remains from prompt or interaction, forward it to processing
+    LOG("embd_inp.size(): %d, n_consumed: %d\n", (int) embd_inp.size(), n_consumed);
+    while ((int) embd_inp.size() > n_consumed) {
+        embd.push_back(embd_inp[n_consumed]);
+
+        // push the prompt in the sampling context in order to apply repetition penalties later
+        // for the prompt, we don't apply grammar rules
+        llama_sampling_accept(ctx_sampling, lctx, embd_inp[n_consumed], false);
+
+        ++n_consumed;
+        if ((int) embd.size() >= params.n_batch) {
+            break;
+        }
+    }
+
+
+    for (int i = 0; i < (int) embd.size(); i += params.n_batch) {
+        int n_eval = (int) embd.size() - i;
+        if (n_eval > params.n_batch) {
+            n_eval = params.n_batch;
+        }
+
+        LOG("eval: %s\n", LOG_TOKENS_TOSTR_PRETTY(lctx, embd).c_str());
+
+        if (llama_decode(lctx, llama_batch_get_one(&embd[i], n_eval, n_past, 0))) {
+            LOG_TEE("%s : failed to eval\n", __func__);
+            return 1;
+        }
+
+        n_past += n_eval;
+
+        LOG("n_past = %d\n", n_past);
+    }
+
+
+
+   return 0;
+}
+
 std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
     auto mparams = llama_model_params_from_gpt_params(params);
 
-    llama_model * model  = llama_load_model_from_file(params.model.c_str(), mparams);
-    if (model == NULL) {
+//MGC todo use encoder first and then pass to decoder
+    nllb_model* nl_model  = llama_load_model_from_file(params.model.c_str(), mparams);
+    if (nl_model == NULL) {
         fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
         return std::make_tuple(nullptr, nullptr);
     }
+    //TODO for some reason the nl_model->enocder_model pointer is getting overwritten
+    llama_model* encoder_model = nl_model->encoder_model;
+    llama_model* decoder_model = nl_model->decoder_model;
 
     auto cparams = llama_context_params_from_gpt_params(params);
 
-    llama_context * lctx = llama_new_context_with_model(model, cparams);
+
+    llama_context * lctx = llama_new_context_with_model(encoder_model, cparams);
     if (lctx == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
-        llama_free_model(model);
+        llama_free_model(encoder_model);
         return std::make_tuple(nullptr, nullptr);
     }
 
     for (unsigned int i = 0; i < params.lora_adapter.size(); ++i) {
         const std::string& lora_adapter = std::get<0>(params.lora_adapter[i]);
         float lora_scale = std::get<1>(params.lora_adapter[i]);
-        int err = llama_model_apply_lora_from_file(model,
+        int err = llama_model_apply_lora_from_file(encoder_model,
                                              lora_adapter.c_str(),
                                              lora_scale,
                                              ((i > 0) || params.lora_base.empty())
@@ -984,25 +1063,54 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         if (err != 0) {
             fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
             llama_free(lctx);
-            llama_free_model(model);
+            llama_free_model(encoder_model);
             return std::make_tuple(nullptr, nullptr);
         }
     }
 
     if (params.ignore_eos) {
-        params.sparams.logit_bias[llama_token_eos(model)] = -INFINITY;
+        params.sparams.logit_bias[llama_token_eos(encoder_model)] = -INFINITY;
     }
 
     {
         LOG("warming up the model with an empty run\n");
 
-        std::vector<llama_token> tmp = { llama_token_bos(model), llama_token_eos(model), };
+        std::vector<llama_token> tmp = { llama_token_bos(encoder_model), llama_token_eos(encoder_model), };
         llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
         llama_kv_cache_clear(lctx);
         llama_reset_timings(lctx);
     }
 
-    return std::make_tuple(model, lctx);
+
+
+    //MGC RUN the encoder and get the embeddings back
+    int ret = run_encoder_model(encoder_model, lctx, params);
+    if(ret != 0){
+        throw "Failed to run encoder model";
+    }
+
+
+    lctx = NULL; //TODO is this correct way to free it?
+    llama_context * lctx2 = llama_new_context_with_model(decoder_model, cparams);
+    if (lctx2 == NULL) {
+        fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
+        llama_free_model(encoder_model);
+        return std::make_tuple(nullptr, nullptr);
+    }
+
+    {
+        LOG("warming up the model with an empty run\n");
+
+        std::vector<llama_token> tmp = { llama_token_bos(decoder_model), llama_token_eos(decoder_model), };
+        llama_decode(lctx2, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
+        llama_kv_cache_clear(lctx2);
+        llama_reset_timings(lctx2);
+    }
+
+
+
+
+    return std::make_tuple(decoder_model, lctx2);
 }
 
 //

@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string>
 
 #ifdef LLAMA_SHARED
 #    if defined(_WIN32) && !defined(__MINGW32__)
@@ -60,6 +61,11 @@ extern "C" {
     //
 
     struct llama_model;
+struct nllb_model {
+    struct llama_model *decoder_model;
+    struct llama_model *encoder_model;
+};
+
     struct llama_context;
 
     typedef int32_t llama_pos;
@@ -269,7 +275,7 @@ extern "C" {
     // Call once at the end of the program - currently only used for MPI
     LLAMA_API void llama_backend_free(void);
 
-    LLAMA_API struct llama_model * llama_load_model_from_file(
+    LLAMA_API struct nllb_model * llama_load_model_from_file(
                              const char * path_model,
             struct llama_model_params     params);
 

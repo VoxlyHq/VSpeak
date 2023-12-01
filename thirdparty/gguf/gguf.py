@@ -137,27 +137,27 @@ MODEL_ARCH_NAMES: dict[MODEL_ARCH, str] = {
 }
 
 TENSOR_NAMES: dict[MODEL_TENSOR, str] = {
-    MODEL_TENSOR.TOKEN_EMBD:      "token_embd",
-    MODEL_TENSOR.TOKEN_EMBD_NORM: "token_embd_norm",
-    MODEL_TENSOR.TOKEN_TYPES:     "token_types",
-    MODEL_TENSOR.POS_EMBD:        "position_embd",
-    MODEL_TENSOR.OUTPUT_NORM:     "output_norm",
-    MODEL_TENSOR.OUTPUT:          "output",
-    MODEL_TENSOR.ROPE_FREQS:      "rope_freqs",
-    MODEL_TENSOR.ATTN_NORM:       "blk.{bid}.attn_norm",
-    MODEL_TENSOR.ATTN_NORM_2:     "blk.{bid}.attn_norm_2",
-    MODEL_TENSOR.ATTN_QKV:        "blk.{bid}.attn_qkv",
-    MODEL_TENSOR.ATTN_Q:          "blk.{bid}.attn_q",
-    MODEL_TENSOR.ATTN_K:          "blk.{bid}.attn_k",
-    MODEL_TENSOR.ATTN_V:          "blk.{bid}.attn_v",
-    MODEL_TENSOR.ATTN_OUT:        "blk.{bid}.attn_output",
-    MODEL_TENSOR.ATTN_ROT_EMBD:   "blk.{bid}.attn_rot_embd",
-    MODEL_TENSOR.ATTN_Q_NORM:     "blk.{bid}.attn_q_norm",
-    MODEL_TENSOR.ATTN_K_NORM:     "blk.{bid}.attn_k_norm",
-    MODEL_TENSOR.FFN_NORM:        "blk.{bid}.ffn_norm",
-    MODEL_TENSOR.FFN_GATE:        "blk.{bid}.ffn_gate",
-    MODEL_TENSOR.FFN_DOWN:        "blk.{bid}.ffn_down",
-    MODEL_TENSOR.FFN_UP:          "blk.{bid}.ffn_up",
+    MODEL_TENSOR.TOKEN_EMBD:      "{outprefix}token_embd",
+    MODEL_TENSOR.TOKEN_EMBD_NORM: "{outprefix}token_embd_norm",
+    MODEL_TENSOR.TOKEN_TYPES:     "{outprefix}token_types",
+    MODEL_TENSOR.POS_EMBD:        "{outprefix}position_embd",
+    MODEL_TENSOR.OUTPUT_NORM:     "{outprefix}output_norm",
+    MODEL_TENSOR.OUTPUT:          "{outprefix}output",
+    MODEL_TENSOR.ROPE_FREQS:      "{outprefix}rope_freqs",
+    MODEL_TENSOR.ATTN_NORM:       "{outprefix}blk.{bid}.attn_norm",
+    MODEL_TENSOR.ATTN_NORM_2:     "{outprefix}blk.{bid}.attn_norm_2",
+    MODEL_TENSOR.ATTN_QKV:        "{outprefix}blk.{bid}.attn_qkv",
+    MODEL_TENSOR.ATTN_Q:          "{outprefix}blk.{bid}.attn_q",
+    MODEL_TENSOR.ATTN_K:          "{outprefix}blk.{bid}.attn_k",
+    MODEL_TENSOR.ATTN_V:          "{outprefix}blk.{bid}.attn_v",
+    MODEL_TENSOR.ATTN_OUT:        "{outprefix}blk.{bid}.attn_output",
+    MODEL_TENSOR.ATTN_ROT_EMBD:   "{outprefix}blk.{bid}.attn_rot_embd",
+    MODEL_TENSOR.ATTN_Q_NORM:     "{outprefix}blk.{bid}.attn_q_norm",
+    MODEL_TENSOR.ATTN_K_NORM:     "{outprefix}blk.{bid}.attn_k_norm",
+    MODEL_TENSOR.FFN_NORM:        "{outprefix}blk.{bid}.ffn_norm",
+    MODEL_TENSOR.FFN_GATE:        "{outprefix}blk.{bid}.ffn_gate",
+    MODEL_TENSOR.FFN_DOWN:        "{outprefix}blk.{bid}.ffn_down",
+    MODEL_TENSOR.FFN_UP:          "{outprefix}blk.{bid}.ffn_up",
 }
 
 MODEL_TENSORS: dict[MODEL_ARCH, list[MODEL_TENSOR]] = {
@@ -334,7 +334,7 @@ class TensorNameMap:
             "transformer.wte",                          # gpt2 gpt-j mpt refact
             "transformer.word_embeddings",              # falcon
             "word_embeddings",                          # bloom
-            "target_letter_decoder.embed_tokens",                       # llama-hf
+            "{mprefix}embed_tokens",                       # llama-hf
             "tok_embeddings",                           # llama-pth
             "embeddings.word_embeddings",               # bert
             "language_model.embedding.word_embeddings", # persimmon
@@ -362,7 +362,7 @@ class TensorNameMap:
             "lm_head",                  # gpt2 mpt falcon llama-hf baichuan
             "output",                   # llama-pth bloom
             "word_embeddings_for_head", # persimmon
-            "target_letter_decoder.output_projection",              #seamless
+            "{mprefix}output_projection",              #seamless
 
         ),
 
@@ -370,14 +370,14 @@ class TensorNameMap:
         MODEL_TENSOR.OUTPUT_NORM: (
             "gpt_neox.final_layer_norm",              # gptneox
             "transformer.ln_f",                       # gpt2 gpt-j falcon
-            "target_letter_decoder.norm",                             # llama-hf baichuan
+            "{mprefix}norm",                             # llama-hf baichuan
             "norm",                                   # llama-pth
             "embeddings.LayerNorm",                   # bert
             "transformer.norm_f",                     # mpt
             "ln_f",                                   # refact bloom
             "language_model.encoder.final_layernorm", # persimmon
-#            "target_letter_decoder.layers.{bid}.final_layer_norm",              #seamless
-            "target_letter_decoder.layer_norm",              #seamless
+#            "{mprefix}layers.{bid}.final_layer_norm",              #seamless
+            "{mprefix}layer_norm",              #seamless
 
         ),
 
@@ -396,12 +396,12 @@ class TensorNameMap:
             "transformer.h.{bid}.input_layernorm",                 # falcon7b
             "h.{bid}.input_layernorm",                             # bloom
             "transformer.h.{bid}.ln_mlp",                          # falcon40b
-#            "target_letter_decoder.layers.{bid}.input_layernorm",                  # llama-hf
+#            "{mprefix}layers.{bid}.input_layernorm",                  # llama-hf
             "layers.{bid}.attention_norm",                         # llama-pth
             "encoder.layer.{bid}.attention.output.LayerNorm",      # bert
             "language_model.encoder.layers.{bid}.input_layernorm", # persimmon
-#            "target_letter_decoder.layers.{bid}.ln1",                              # yi
-            "target_letter_decoder.layers.{bid}.self_attn_layer_norm", #seamless
+#            "{mprefix}layers.{bid}.ln1",                              # yi
+            "{mprefix}layers.{bid}.self_attn_layer_norm", #seamless
         ),
 
         # Attention norm 2
@@ -421,8 +421,8 @@ class TensorNameMap:
 
         # Attention query
         MODEL_TENSOR.ATTN_Q: (
-            "target_letter_decoder.layers.{bid}.self_attn.q_proj",       # llama-hf
-            "target_letter_decoder.layers.{bid}.encoder_attn.q_proj",       # llama-hf
+            "{mprefix}layers.{bid}.self_attn.q_proj",       # llama-hf
+            "{mprefix}layers.{bid}.encoder_attn.q_proj",       # llama-hf
             "layers.{bid}.attention.wq",                 # llama-pth
             "encoder.layer.{bid}.attention.self.query",  # bert
             "transformer.h.{bid}.attn.q_proj",           # gpt-j
@@ -430,8 +430,8 @@ class TensorNameMap:
 
         # Attention key
         MODEL_TENSOR.ATTN_K: (
-            "target_letter_decoder.layers.{bid}.encoder_attn.k_proj",     # llama-hf
-            "target_letter_decoder.layers.{bid}.self_attn.k_proj",     # llama-hf
+            "{mprefix}layers.{bid}.encoder_attn.k_proj",     # llama-hf
+            "{mprefix}layers.{bid}.self_attn.k_proj",     # llama-hf
             "layers.{bid}.attention.wk",               # llama-pth
             "encoder.layer.{bid}.attention.self.key",  # bert
             "transformer.h.{bid}.attn.k_proj",         # gpt-j
@@ -439,10 +439,10 @@ class TensorNameMap:
 
         # Attention value
         MODEL_TENSOR.ATTN_V: (
-            "target_letter_decoder.layers.{bid}.encoder_attn.v_proj",       # llama-hf
-            "target_letter_decoder.layers.{bid}.self_attn.v_proj",       # llama-hf
+            "{mprefix}layers.{bid}.encoder_attn.v_proj",       # llama-hf
+            "{mprefix}layers.{bid}.self_attn.v_proj",       # llama-hf
             "layers.{bid}.attention.wv",                 # llama-pth
-            "target_letter_decoder.layer.{bid}.attention.self.value",  # seamless
+            "{mprefix}layer.{bid}.attention.self.value",  # seamless
             "transformer.h.{bid}.attn.v_proj",           # gpt-j
         ),
 
@@ -453,18 +453,18 @@ class TensorNameMap:
             "transformer.blocks.{bid}.attn.out_proj",                  # mpt
             "transformer.h.{bid}.self_attention.dense",                # falcon
             "h.{bid}.self_attention.dense",                            # bloom
-            "target_letter_decoder.layers.{bid}.self_attn.o_proj",                     # llama-hf
-            "target_letter_decoder.layers.{bid}.self_attn.out_proj",                     # seamless
+            "{mprefix}layers.{bid}.self_attn.o_proj",                     # llama-hf
+            "{mprefix}layers.{bid}.self_attn.out_proj",                     # seamless
             "layers.{bid}.attention.wo",                               # llama-pth
             "encoder.layer.{bid}.attention.output.dense",              # bert
-            "target_letter_decoder.layers.{bid}.encoder_attn.out_proj",              # seamless
+            "{mprefix}layers.{bid}.encoder_attn.out_proj",              # seamless
             "transformer.h.{bid}.attn.out_proj",                       # gpt-j
             "language_model.encoder.layers.{bid}.self_attention.dense" # persimmon
         ),
 
         # Rotary embeddings
         MODEL_TENSOR.ATTN_ROT_EMBD: (
-            "target_letter_decoder.layers.{bid}.self_attn.rotary_emb.inv_freq",  # llama-hf
+            "{mprefix}layers.{bid}.self_attn.rotary_emb.inv_freq",  # llama-hf
             "layers.{bid}.attention.inner_attention.rope.freqs", # llama-pth
         ),
 
@@ -474,12 +474,12 @@ class TensorNameMap:
             "transformer.h.{bid}.ln_2",                                     # gpt2 refact
             "h.{bid}.post_attention_layernorm",                             # bloom
             "transformer.blocks.{bid}.norm_2",                              # mpt
-            "target_letter_decoder.layers.{bid}.post_attention_layernorm",                  # llama-hf
+            "{mprefix}layers.{bid}.post_attention_layernorm",                  # llama-hf
             "layers.{bid}.ffn_norm",                                        # llama-pth
             "encoder.layer.{bid}.output.LayerNorm",                         # bert
             "language_model.encoder.layers.{bid}.post_attention_layernorm", # persimmon
-            "target_letter_decoder.layers.{bid}.ln2",                                       # yi
-            "target_letter_decoder.layers.{bid}.final_layer_norm",
+            "{mprefix}layers.{bid}.ln2",                                       # yi
+            "{mprefix}layers.{bid}.final_layer_norm",
             #ffn_layer_norm ??? final_layer_norm
         ),
 
@@ -490,20 +490,20 @@ class TensorNameMap:
             "transformer.blocks.{bid}.ffn.up_proj",                  # mpt
             "transformer.h.{bid}.mlp.dense_h_to_4h",                 # falcon
             "h.{bid}.mlp.dense_h_to_4h",                             # bloom
-            "target_letter_decoder.layers.{bid}.mlp.up_proj",                        # llama-hf refact
+            "{mprefix}layers.{bid}.mlp.up_proj",                        # llama-hf refact
             "layers.{bid}.feed_forward.w3",                          # llama-pth
             "encoder.layer.{bid}.intermediate.dense",                # bert
             "transformer.h.{bid}.mlp.fc_in",                         # gpt-j
             "language_model.encoder.layers.{bid}.mlp.dense_h_to_4h", # persimmon
-            "target_letter_decoder.layers.{bid}.fc2", #seamless
+            "{mprefix}layers.{bid}.fc2", #seamless
         ),
 
         # Feed-forward gate
         MODEL_TENSOR.FFN_GATE: (
-            "target_letter_decoder.layers.{bid}.mlp.gate_proj", # llama-hf refact
+            "{mprefix}layers.{bid}.mlp.gate_proj", # llama-hf refact
             "layers.{bid}.feed_forward.w1",     # llama-pth
-            "target_letter_decoder.layers.{bid}.ffn1.w_1", #seamless
-            "target_letter_decoder.layers.{bid}.encoder_attn_layer_norm", #not correct but just filling it with something
+            "{mprefix}layers.{bid}.ffn1.w_1", #seamless
+            "{mprefix}layers.{bid}.encoder_attn_layer_norm", #not correct but just filling it with something
 
         ),
 
@@ -517,12 +517,12 @@ class TensorNameMap:
             "transformer.blocks.{bid}.ffn.down_proj",                # mpt
             "transformer.h.{bid}.mlp.dense_4h_to_h",                 # falcon
             "h.{bid}.mlp.dense_4h_to_h",                             # bloom
-            "target_letter_decoder.layers.{bid}.mlp.down_proj",                      # llama-hf
+            "{mprefix}layers.{bid}.mlp.down_proj",                      # llama-hf
             "layers.{bid}.feed_forward.w2",                          # llama-pth
             "encoder.layer.{bid}.output.dense",                      # bert
             "transformer.h.{bid}.mlp.fc_out",                        # gpt-j
             "language_model.encoder.layers.{bid}.mlp.dense_4h_to_h", # persimmon
-            "target_letter_decoder.layers.{bid}.fc1", #seamless
+            "{mprefix}layers.{bid}.fc1", #seamless
         ),
 
         MODEL_TENSOR.ATTN_Q_NORM: (
@@ -540,23 +540,24 @@ class TensorNameMap:
 
     mapping: dict[str, tuple[MODEL_TENSOR, str]]
 
-    def __init__(self, arch: MODEL_ARCH, n_blocks: int):
+    def __init__(self, arch: MODEL_ARCH, n_blocks: int, mprefix: str, outprefix: str):
         self.mapping = {}
         for tensor, keys in self.mappings_cfg.items():
             if tensor not in MODEL_TENSORS[arch]:
                 continue
-            tensor_name = TENSOR_NAMES[tensor]
+            tensor_name = TENSOR_NAMES[tensor].format(mprefix = mprefix, outprefix = outprefix)
             self.mapping[tensor_name] = (tensor, tensor_name)
             for key in keys:
+                key = key.format(mprefix = mprefix)
                 self.mapping[key] = (tensor, tensor_name)
         for bid in range(n_blocks):
             for tensor, keys in self.block_mappings_cfg.items():
                 if tensor not in MODEL_TENSORS[arch]:
                     continue
-                tensor_name = TENSOR_NAMES[tensor].format(bid = bid)
+                tensor_name = TENSOR_NAMES[tensor].format(bid = bid, mprefix = mprefix, outprefix = outprefix)
                 self.mapping[tensor_name] = (tensor, tensor_name)
                 for key in keys:
-                    key = key.format(bid = bid)
+                    key = key.format(bid = bid, mprefix = mprefix,outprefix = outprefix)
                     self.mapping[key] = (tensor, tensor_name)
 
     def get_type_and_name(self, key: str, try_suffixes: Sequence[str] = ()) -> tuple[MODEL_TENSOR, str] | None:

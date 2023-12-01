@@ -546,24 +546,28 @@ static llm_arch llm_arch_from_string(const std::string & name) {
 //   std::string name = tn(LLM_TENSOR_ATTN_NORM, "weight", 3);     -> "blk.3.attn_norm.weight"
 //
 struct LLM_TN {
-    LLM_TN(llm_arch arch) : arch(arch) {}
+    LLM_TN(llm_arch arch, std::string prefix) : arch(arch), prefix(prefix + ".") {}
 
     llm_arch arch;
+    std::string prefix;
 
     std::string operator()(llm_tensor tensor) const {
         return LLM_TENSOR_NAMES[arch].at(tensor);
     }
 
     std::string operator()(llm_tensor tensor, const std::string & suffix) const {
-        return LLM_TENSOR_NAMES[arch].at(tensor) + "." + suffix;
+//        return LLM_TENSOR_NAMES[arch].at(tensor) + "." + suffix;
+//MGC
+        return ::format("%s%s.%s", prefix.c_str(), ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str()).c_str(), suffix.c_str());
     }
 
     std::string operator()(llm_tensor tensor, int bid) const {
-        return ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid);
+        return ::format("%s%s", prefix.c_str(), ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid).c_str());
+//        return prefix + ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid);
     }
 
     std::string operator()(llm_tensor tensor, const std::string & suffix, int bid) const {
-        return ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(), bid) + "." + suffix;
+        return prefix + ::format(LLM_TENSOR_NAMES[arch].at(tensor).c_str(),  bid) + "." + suffix;
     }
 };
 
@@ -1363,6 +1367,7 @@ struct llama_model {
     }
 };
 
+
 struct llama_context {
     llama_context(const llama_model & model) : model(model), t_start_us(model.t_start_us), t_load_us(model.t_load_us) {}
     ~llama_context() {
@@ -1403,6 +1408,7 @@ struct llama_context {
 
     // input embedding (1-dimensional array: [n_embd])
     std::vector<float> embedding;
+    ggml_tensor* result_tensor = nullptr;
 
     // reusable buffer for `struct ggml_graph_plan.work_data`
     std::vector<uint8_t> work_buffer;
@@ -2569,7 +2575,8 @@ static void llm_load_tensors(
         const float * tensor_split,
         bool use_mlock,
         llama_progress_callback progress_callback,
-        void * progress_callback_user_data) {
+        void * progress_callback_user_data,
+        const std::string prefix) {
     model.t_start_us = ggml_time_us();
 
     auto & ctx     = model.ctx;
@@ -2633,7 +2640,7 @@ static void llm_load_tensors(
 
 
     
-        const auto tn = LLM_TN(model.arch);
+        const auto tn = LLM_TN(model.arch, prefix);
         switch (model.arch) {
             case LLM_ARCH_LLAMA:
             case LLM_ARCH_REFACT:
@@ -2662,7 +2669,9 @@ static void llm_load_tensors(
                         }
 
                         model.output_norm = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd},          backend_norm);
-                        model.output      = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, backend_output);
+                       //MGC, does the encoder need a tensor output?
+                       // model.output      = ml.create_tensor(ctx, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, backend_output);
+                       model.output      = ml.create_tensor(ctx, "decoder.output.weight", {n_embd, n_vocab}, backend_output);
 
                         if (backend_norm == GGML_BACKEND_GPU) {
                             vram_weights += ggml_nbytes(model.output_norm);
@@ -2693,7 +2702,8 @@ static void llm_load_tensors(
 
                         layer.ffn_norm = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, backend);
 
-                        layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
+//MGC
+                       // layer.ffn_gate = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, backend_split);
                         //MGC
                         layer.ffn_down = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  8192, n_embd}, backend_split);
                         layer.ffn_up   = ml.create_tensor(ctx, tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   8192}, backend_split);
@@ -3210,19 +3220,27 @@ static void llm_load_tensors(
     model.t_load_us = ggml_time_us() - model.t_start_us;
 }
 
-static bool llama_model_load(const std::string & fname, llama_model & model, const llama_model_params & params) {
+static bool llama_model_load(const std::string & fname, llama_model & encoder_model,  llama_model & decoder_model, const llama_model_params & params) {
     try {
         llama_model_loader ml(fname, params.use_mmap);
 
-        model.hparams.vocab_only = params.vocab_only;
+        encoder_model.hparams.vocab_only = params.vocab_only;
 
-        llm_load_arch   (ml, model);
-        llm_load_hparams(ml, model);
-        llm_load_vocab  (ml, model);
+        llm_load_arch   (ml, encoder_model);
+        llm_load_hparams(ml, encoder_model);
+        llm_load_vocab  (ml, encoder_model);
 
-        llm_load_print_meta(ml, model);
+        llm_load_print_meta(ml, encoder_model);
 
-        if (model.hparams.n_vocab != model.vocab.id_to_token.size()) {
+
+//Do we need to do this twice ? not sure 
+        llm_load_arch   (ml, decoder_model);
+        llm_load_hparams(ml, decoder_model);
+        llm_load_vocab  (ml, decoder_model);
+
+        llm_load_print_meta(ml, decoder_model);
+
+        if (encoder_model.hparams.n_vocab != encoder_model.vocab.id_to_token.size()) {
         //    throw std::runtime_error("vocab size mismatch");
             LLAMA_LOG_INFO("%s: vocab size mismatch\n", __func__);
         }
@@ -3232,10 +3250,25 @@ static bool llama_model_load(const std::string & fname, llama_model & model, con
             return true;
         }
 
+        //TODO have seperate models
+        auto encoder_prefix = "encoder";
+
         llm_load_tensors(
-            ml, model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
-            params.progress_callback, params.progress_callback_user_data
+            ml, encoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            params.progress_callback, params.progress_callback_user_data, encoder_prefix
         );
+
+
+        //MGC todo pass in
+        auto decoder_prefix = "decoder";
+
+        llm_load_tensors(
+            ml, decoder_model, params.n_gpu_layers, params.main_gpu, params.tensor_split, params.use_mlock,
+            params.progress_callback, params.progress_callback_user_data, decoder_prefix
+        );
+
+
+
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("error loading model: %s\n", err.what());
         return false;
@@ -4960,7 +4993,7 @@ static struct ggml_cgraph * llama_build_graph(
         const int i_gpu_start  = n_layer - n_gpu_layers;
 
         // should we offload the final norm? yes if we are not computing embeddings
-        const bool offload_emb = lctx.embedding.empty();
+        const bool offload_emb = true; // lctx.embedding.empty(); //MGC
 
         static const std::unordered_map<llm_offload_func_e, std::string, std::hash<int>> k_offload_func_name = {
             { OFFLOAD_FUNC_NOP, "CPU" },
@@ -5232,6 +5265,11 @@ static int llama_decode_internal(
     GGML_ASSERT(strcmp(res->name,        "result_output") == 0);
     GGML_ASSERT(strcmp(embeddings->name, "result_norm")   == 0);
 
+    LLAMA_LOG_INFO("%s: - result_output: %32s %-8s [ %s ]\n", __func__, res->name, ggml_type_name(res->type), llama_format_tensor_shape(res).c_str());
+    LLAMA_LOG_INFO("%s: - result_norm: %32s %-8s [ %s ]\n", __func__, embeddings->name, ggml_type_name(embeddings->type), llama_format_tensor_shape(embeddings).c_str());
+
+    lctx.result_tensor = embeddings;
+
 
 #ifdef GGML_USE_CUBLAS
     for (int i = 0; i < gf->n_leafs; i++) {
@@ -5352,13 +5390,15 @@ static int llama_decode_internal(
         }
     }
 
-    // extract embeddings
-    if (!lctx.embedding.empty()) {
-        auto & embedding_out = lctx.embedding;
+    //MGC extract embeddings (return it somehow)
+    //if (!lctx.embedding.empty()) {
+        //auto & embedding_out = lctx.embedding; //TODO its not handling N dimensions UGHHHH
+        std::vector<float> embedding_out;
 
         embedding_out.resize(n_embd);
         memcpy(embedding_out.data(), (float *) ggml_get_data(embeddings) + (n_embd*(n_tokens - 1)), sizeof(float)*n_embd);
-    }
+        lctx.embedding = embedding_out;
+    //}
 
     // measure the performance only for the single-token evals
     if (n_tokens == 1) {
@@ -7395,12 +7435,13 @@ static void llama_convert_tensor_internal(
 
 static ggml_type get_k_quant_type(
     quantize_state_internal & qs,
-    ggml_type new_type, const ggml_tensor * tensor, llama_ftype ftype
+    ggml_type new_type, const ggml_tensor * tensor, llama_ftype ftype, 
+    const std::string& prefix
 ) {
     const std::string name = ggml_get_name(tensor);
     // TODO: avoid hardcoded tensor names - use the TN_* constants
     const llm_arch arch = qs.model.arch;
-    const auto       tn = LLM_TN(arch);
+    const auto       tn = LLM_TN(arch, prefix);
 
     auto use_more_bits = [](int i_layer, int num_layers) -> bool {
         return i_layer < num_layers/8 || i_layer >= 7*num_layers/8 || (i_layer - num_layers/8)%3 == 2;
@@ -7651,7 +7692,10 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         if (quantize) {
             new_type = quantized_type;
             if (!params->pure) {
-                new_type = get_k_quant_type(qs, new_type, tensor, ftype);
+                //MGC
+                throw("Not implemented");
+                std::string prefix = "decoder";
+                new_type = get_k_quant_type(qs, new_type, tensor, ftype, prefix);
             }
 
             // If we've decided to quantize to the same type the tensor is already
@@ -8072,7 +8116,7 @@ struct llama_model_params llama_model_default_params() {
         /*.progress_callback_user_data =*/ nullptr,
         /*.vocab_only                  =*/ false,
         /*.use_mmap                    =*/ true,
-        /*.use_mlock                   =*/ false,
+        /*.use_mlock                   =*/ false
     };
 
 #ifdef GGML_USE_METAL
@@ -8160,12 +8204,13 @@ int64_t llama_time_us(void) {
     return ggml_time_us();
 }
 
-struct llama_model * llama_load_model_from_file(
+struct nllb_model * llama_load_model_from_file(
                              const char * path_model,
               struct llama_model_params   params) {
     ggml_time_init();
 
-    llama_model * model = new llama_model;
+    llama_model * encoder_model = new llama_model;
+    llama_model * decoder_model = new llama_model;
 
     unsigned cur_percentage = 0;
     if (params.progress_callback == NULL) {
@@ -8183,13 +8228,16 @@ struct llama_model * llama_load_model_from_file(
         };
     }
 
-    if (!llama_model_load(path_model, *model, params)) {
+    if (!llama_model_load(path_model, *encoder_model, *decoder_model, params)) {
         LLAMA_LOG_ERROR("%s: failed to load model\n", __func__);
-        delete model;
+        delete encoder_model;
+        delete decoder_model;
         return nullptr;
     }
 
-    return model;
+    
+    nllb_model res = { decoder_model, encoder_model };
+    return &res;
 }
 
 void llama_free_model(struct llama_model * model) {
