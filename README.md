@@ -27,18 +27,34 @@ Ensure you have a C++ compiler and environment set up. VSpeak is compatible with
 1. Clone the VSpeak repository:
    ```bash
    git clone https://github.com/voxlyhq/vspeak.git
+
+   LAMA_METAL=1 LLAMA_DEBUG=1 make -j 4 main 
+
+   ./main -p "i just ate" --src-lang=eng --tgt-lang=tha --log-enable -m  vspeak.gguf
    ```
+*Remove the LLAMA_METAl if you aren't on OSX
+   
 
 ## Download a model from hugging face
 
 Right now its only the V1 models, please open a PR if you do other conversions
+
+## Usage 
+
+Right now you specify both src and target language, in future you can skip on the source.
+```
+-p "Text you want translated"
+-tgt_lang tha
+-src_lang eng
+```
+todo: add the speech vocoder, right now we only do text translation bits.
 
 ## To convert models 
 
 ```bash
 pip3 install -r requirements.txt
 
-python3 convert_nllb.py  --vocab-dir=tokenizer.model --ctx 4096  --start_key model --prefix_model=target_letter_decoder --outfile otarget_letter_decoder.gguf   multitask_unity_large.pt
+python3 convert_nllb.py  --vocab-dir=tokenizer.model --ctx 4096  --start_key model --prefix_model=target_letter_decoder --outfile vspeak.gguf   multitask_unity_large.pt
 bck-i-search: nllb_
 ```
 
